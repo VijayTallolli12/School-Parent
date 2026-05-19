@@ -1,5 +1,5 @@
 import axios from "axios";
-import { API_BASE_URL } from "@/constants/config";
+import { API_BASE_URL } from "@/config/api";
 import { storage } from "@/utils/storage";
 import { STORAGE_KEYS } from "@/constants/config";
 

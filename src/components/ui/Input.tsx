@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef, memo } from "react";
 import {
   View,
   Text,
@@ -17,20 +17,55 @@ interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export function Input({
+// Static values outside component — never recomputed
+const BASE_CONTAINER_CLASS = "flex-row items-center rounded-2xl border-2 px-4 bg-slate-50";
+const INPUT_CLASS = "flex-1 py-4 text-base text-slate-800";
+
+export const Input = memo(function Input({
   label,
   error,
   leftIcon,
   isPassword,
   containerStyle,
   className = "",
+  onFocus: externalOnFocus,
+  onBlur: externalOnBlur,
   ...rest
 }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const hasValue = typeof rest.value === "string" && rest.value.length > 0;
   const showError = !!error;
-  const isActive = isFocused || hasValue;
+
+  // Ref-based callbacks — eternally stable, never cause re-renders
+  const onFocusRef = useRef(externalOnFocus);
+  onFocusRef.current = externalOnFocus;
+  const onBlurRef = useRef(externalOnBlur);
+  onBlurRef.current = externalOnBlur;
+
+  const handleFocus = useCallback((e: any) => {
+    setIsFocused(true);
+    onFocusRef.current?.(e);
+  }, []);
+
+  const handleBlur = useCallback((e: any) => {
+    setIsFocused(false);
+    onBlurRef.current?.(e);
+  }, []);
+
+  // Border color via inline style — avoids NativeWind className recomputation
+  const borderColor = showError
+    ? "#DC2626"
+    : isFocused
+      ? "#3B82F6"
+      : "#E2E8F0";
+
+  const bgColor = showError ? "#FEF2F2" : isFocused ? "#FFFFFF" : "#F8FAFC";
+
+  const iconColor = showError
+    ? "#DC2626"
+    : isFocused
+      ? "#3B82F6"
+      : "#94A3B8";
 
   return (
     <View style={containerStyle}>
@@ -40,45 +75,20 @@ export function Input({
         </Text>
       )}
       <View
-        className={[
-          "flex-row items-center rounded-2xl border-2 px-4 transition-all duration-200",
-          isFocused
-            ? "border-primary-500 bg-white"
-            : showError
-              ? "border-status-error bg-red-50"
-              : "border-slate-100 bg-slate-100",
-          isFocused && !showError ? "shadow-sm" : "",
-        ].join(" ")}
-        style={
-          isFocused && !showError
-            ? { shadowColor: "#3B82F6", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 }
-            : undefined
-        }
+        className={BASE_CONTAINER_CLASS}
+        style={{ borderColor, backgroundColor: bgColor }}
       >
         {leftIcon && (
           <View className="mr-3">
-            <Ionicons
-              name={leftIcon}
-              size={20}
-              color={
-                showError
-                  ? "#DC2626"
-                  : isFocused
-                    ? "#3B82F6"
-                    : "#94A3B8"
-              }
-            />
+            <Ionicons name={leftIcon} size={20} color={iconColor} />
           </View>
         )}
         <TextInput
-          className={[
-            "flex-1 py-4 text-base text-slate-800 placeholder:text-slate-400",
-            className,
-          ].join(" ")}
+          className={[INPUT_CLASS, className].filter(Boolean).join(" ")}
           placeholderTextColor="#94A3B8"
           selectionColor="#3B82F6"
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           secureTextEntry={isPassword && !showPassword}
           {...rest}
         />
@@ -106,4 +116,4 @@ export function Input({
       )}
     </View>
   );
-}
+});

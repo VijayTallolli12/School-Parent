@@ -25,9 +25,9 @@ export default function SplashScreen() {
 
     const timer = setTimeout(() => {
       if (isAuthenticated) {
-        router.replace("/(tabs)");
+        router.replace("/(tabs)" as any);
       } else {
-        router.replace("/(auth)/login");
+        router.replace("/(auth)/login" as any);
       }
     }, 2000);
 

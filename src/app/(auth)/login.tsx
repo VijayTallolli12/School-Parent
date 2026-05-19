@@ -48,7 +48,7 @@ export default function LoginScreen() {
         values,
       );
       hydrateFromApi(data);
-      router.replace("/(tabs)");
+      router.replace("/(tabs)" as any);
     } catch (error: any) {
       const message =
         error.response?.data?.message ||
@@ -62,9 +62,8 @@ export default function LoginScreen() {
   return (
     <SafeAreaView className="flex-1 bg-surface-background">
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
         <ScrollView
           ref={scrollRef}

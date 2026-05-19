@@ -1,4 +1,3 @@
-export const API_BASE_URL = "https://your-railway-app.up.railway.app/api";
 
 export const APP_NAME = "School Parent";
 export const APP_VERSION = "1.0.0";
