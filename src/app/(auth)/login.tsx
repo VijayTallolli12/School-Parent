@@ -48,6 +48,7 @@ export default function LoginScreen() {
         values,
       );
       hydrateFromApi(data);
+      console.log("[Login] Login success, redirecting to /(tabs)");
       router.replace("/(tabs)" as any);
     } catch (error: any) {
       const message =

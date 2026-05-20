@@ -77,7 +77,10 @@ export default function DashboardScreen() {
           <TouchableOpacity
             className="flex-row items-center bg-primary-50 border border-primary-100 rounded-xl px-3.5 py-2.5 mt-3"
             activeOpacity={0.7}
-            onPress={() => router.push("/(tabs)/(home)/student-profile")}
+            onPress={() => {
+              console.log("[Dashboard] Navigating to student-profile");
+              router.push("/(tabs)/(home)/student-profile" as any);
+            }}
           >
             <View className="w-9 h-9 bg-primary-200 rounded-full items-center justify-center mr-3">
               <Text className="text-primary-700 font-bold text-sm">
@@ -153,6 +156,7 @@ export default function DashboardScreen() {
               }}
               onPress={() => {
                 if (module.route) {
+                  console.log(`[Dashboard] Quick action: ${module.route}`);
                   router.push(`/(tabs)/(home)/${module.route}` as any);
                 }
               }}
@@ -176,7 +180,10 @@ export default function DashboardScreen() {
             Recent Notifications
           </Text>
           <TouchableOpacity
-            onPress={() => router.push("/(tabs)/(home)/notifications")}
+            onPress={() => {
+              console.log("[Dashboard] Navigating to notifications");
+              router.push("/(tabs)/(home)/notifications" as any);
+            }}
           >
             <Text className="text-primary-600 text-xs font-semibold">See All</Text>
           </TouchableOpacity>
@@ -234,7 +241,10 @@ export default function DashboardScreen() {
             Upcoming Exams
           </Text>
           <TouchableOpacity
-            onPress={() => router.push("/(tabs)/(home)/results")}
+            onPress={() => {
+              console.log("[Dashboard] Navigating to results");
+              router.push("/(tabs)/(home)/results" as any);
+            }}
           >
             <Text className="text-primary-600 text-xs font-semibold">View All</Text>
           </TouchableOpacity>

@@ -25,9 +25,11 @@ export default function SplashScreen() {
 
     const timer = setTimeout(() => {
       if (isAuthenticated) {
+        console.log("[Splash] Authenticated, redirecting to /(tabs)");
         router.replace("/(tabs)" as any);
       } else {
-        router.replace("/(auth)/login" as any);
+        console.log("[Splash] Not authenticated, redirecting to /login");
+        router.replace("/login" as any);
       }
     }, 2000);
 
