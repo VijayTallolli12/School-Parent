@@ -36,6 +36,11 @@ module.exports = {
         "2xl": "16px",
         "3xl": "20px",
       },
+      boxShadow: {
+        subtle: "0 1px 2px 0 rgba(0, 0, 0, 0.04)",
+        soft: "0 2px 6px 0 rgba(0, 0, 0, 0.06)",
+        card: "0 2px 8px 0 rgba(0, 0, 0, 0.06)",
+      },
     },
   },
   plugins: [],

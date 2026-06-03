@@ -1,4 +1,3 @@
-// Auth types
 export interface User {
   id: number;
   name: string;
@@ -10,10 +9,12 @@ export interface User {
 
 export interface Student {
   id: number;
+  uuid: string;
   name: string;
   class: string;
   section: string;
   roll_number: string;
+  admission_no: string;
   avatar_url: string | null;
 }
 
@@ -23,6 +24,8 @@ export interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  parentUuid: string | null;
+  selectedStudentUuid: string | null;
 }
 
 export interface LoginPayload {
@@ -34,98 +37,110 @@ export interface LoginResponse {
   user: User;
   students: Student[];
   token: string;
+  parent_uuid?: string;
 }
 
-// API types
 export interface ApiResponse<T> {
   data: T;
   message: string;
   success: boolean;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  meta: {
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-  };
-}
-
-// Attendance
-export interface Attendance {
+export interface AttendanceRecord {
   id: number;
   student_id: number;
-  date: string;
+  attendance_date: string;
   status: "present" | "absent" | "late" | "half_day";
   remark: string | null;
 }
 
-// Fees
-export interface FeeRecord {
+export interface AttendanceData {
+  student: Record<string, unknown>;
+  month: number;
+  year: number;
+  summary: {
+    total_days: number;
+    counts: Record<string, number>;
+  };
+  records: AttendanceRecord[];
+}
+
+export interface FeeItem {
   id: number;
-  student_id: number;
-  fee_type: string;
+  fee_category_id: number;
   amount: number;
   paid: number;
-  due: number;
-  due_date: string;
-  status: "paid" | "partial" | "unpaid";
+  balance: number;
+  fee_category: string | null;
+  due_date: string | null;
+  status: "paid" | "partial" | "pending";
 }
 
-// Homework
-export interface Homework {
+export interface StudentFee {
   id: number;
   student_id: number;
-  subject: string;
-  title: string;
-  description: string;
-  due_date: string;
-  attachments: string[];
-  status: "pending" | "submitted" | "graded";
+  total_amount: number;
+  total_paid: number;
+  total_balance: number;
+  status: "paid" | "partial" | "unpaid";
+  assigned_at: string | null;
+  items: FeeItem[];
 }
 
-// Notifications
-export interface Notification {
+export interface ExamResultRecord {
+  id: number;
+  student_id: number;
+  marks_obtained: number;
+  maximum_marks: number;
+  grade: string | null;
+  remarks: string | null;
+  exam: {
+    id: number;
+    name: string;
+    subject: { id: number; name: string };
+  };
+}
+
+export interface TimetableSlot {
+  id: number;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  subject: { id: number; name: string } | null;
+  teacher: { id: number; name: string } | null;
+  room: string | null;
+}
+
+export type TimetableData = Record<string, TimetableSlot[]>;
+
+export interface NotificationItem {
   id: number;
   title: string;
   body: string;
   type: "general" | "attendance" | "fees" | "homework" | "result";
   is_read: boolean;
   created_at: string;
+  data?: Record<string, unknown>;
 }
 
-// Timetable
-export interface TimetableEntry {
-  id: number;
-  day: string;
-  period: number;
-  subject: string;
-  teacher: string;
-  start_time: string;
-  end_time: string;
-}
-
-// Results / Exams
-export interface ExamResult {
-  id: number;
-  student_id: number;
-  exam_name: string;
-  subject: string;
-  total_marks: number;
-  obtained_marks: number;
-  grade: string;
-  remarks: string | null;
-}
-
-// Leave Request
-export interface LeaveRequest {
-  id: number;
-  student_id: number;
-  from_date: string;
-  to_date: string;
-  reason: string;
-  status: "pending" | "approved" | "rejected";
-  remark: string | null;
+export interface DashboardData {
+  students: Record<string, unknown>[];
+  attendance_summary: {
+    present: number;
+    absent: number;
+    total: number;
+    percentage: number;
+  };
+  fees_summary: {
+    total: number;
+    paid: number;
+    pending: number;
+  };
+  exam_results_summary: {
+    average: number;
+    subjects: number;
+    total_marks: number;
+    obtained_marks: number;
+  };
+  notifications: NotificationItem[];
 }

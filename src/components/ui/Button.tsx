@@ -26,15 +26,15 @@ const variantStyles: Record<ButtonVariant, string> = {
   secondary:
     "bg-primary-50 active:bg-primary-100",
   outline:
-    "bg-transparent active:bg-slate-50 border-2 border-slate-200",
+    "bg-transparent active:bg-slate-50 border border-slate-200",
   ghost:
     "bg-transparent active:bg-slate-50",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "px-5 py-2.5",
-  md: "px-6 py-3.5",
-  lg: "px-6 py-4",
+  sm: "px-4 py-2.5",
+  md: "px-5 py-3",
+  lg: "px-6 py-3.5",
 };
 
 const textVariantStyles: Record<ButtonVariant, string> = {
@@ -46,8 +46,8 @@ const textVariantStyles: Record<ButtonVariant, string> = {
 
 const sizeTextStyles: Record<ButtonSize, string> = {
   sm: "text-sm font-semibold",
-  md: "text-base font-semibold",
-  lg: "text-base font-bold tracking-wide",
+  md: "text-sm font-semibold",
+  lg: "text-base font-semibold",
 };
 
 export function Button({
@@ -67,24 +67,24 @@ export function Button({
     <TouchableOpacity
       onPress={onPress}
       disabled={isDisabled}
-      activeOpacity={0.88}
+      activeOpacity={0.8}
       className={[
-        "flex-row items-center justify-center rounded-2xl",
+        "flex-row items-center justify-center rounded-xl",
         variantStyles[variant],
         sizeStyles[size],
         fullWidth ? "w-full" : "",
         isDisabled ? "opacity-50" : "",
-        variant === "primary" && !isDisabled ? "shadow-md" : "",
+        variant === "primary" && !isDisabled ? "" : "",
         className,
       ].join(" ")}
       style={
         variant === "primary" && !isDisabled
           ? {
               shadowColor: "#2563EB",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 4,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.2,
+              shadowRadius: 4,
+              elevation: 2,
               ...(style as object),
             }
           : (style as object)

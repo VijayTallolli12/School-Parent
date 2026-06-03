@@ -20,10 +20,10 @@ export function Loading({ message, fullScreen = false }: LoadingProps) {
   }
 
   return (
-    <View className="items-center justify-center py-8">
-      <ActivityIndicator size="small" color="#3B82F6" />
+    <View className="items-center justify-center py-16">
+      <ActivityIndicator size="large" color="#3B82F6" />
       {message && (
-        <Text className="text-slate-500 text-sm mt-2">{message}</Text>
+        <Text className="text-slate-500 text-sm mt-3">{message}</Text>
       )}
     </View>
   );

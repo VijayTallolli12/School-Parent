@@ -1,47 +1,84 @@
-import { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { useState, useEffect, useCallback } from "react";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useAuthStore } from "@/store/auth.store";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { fetchAttendance } from "@/services/api";
+import type { AttendanceRecord } from "@/types";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const MONTHLY_STATS = {
-  present: 22,
-  absent: 1,
-  late: 2,
-  halfDay: 0,
-  total: 25,
-};
-
-const generateCalendarDays = () => {
-  const days: { date: number; status: "present" | "absent" | "late" | "half_day" | "future" | null }[] = [];
-  const totalDays = 30;
-  for (let i = 1; i <= totalDays; i++) {
-    if (i > 25) {
-      days.push({ date: i, status: "future" });
-    } else if (i === 8) {
-      days.push({ date: i, status: "absent" });
-    } else if (i === 15 || i === 22) {
-      days.push({ date: i, status: "late" });
-    } else {
-      days.push({ date: i, status: "present" });
-    }
-  }
-  return days;
-};
-
-const calendarDays = generateCalendarDays();
-const firstDayOfMonth = 1;
-
 export default function AttendanceScreen() {
-  const [selectedMonth] = useState(4);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const parentUuid = useAuthStore((s) => s.parentUuid);
+  const students = useAuthStore((s) => s.students);
+  const selectedStudentUuid = useAuthStore((s) => s.selectedStudentUuid);
+  const childUuid = selectedStudentUuid ?? students?.[0]?.uuid;
 
-  const percentage = Math.round((MONTHLY_STATS.present / MONTHLY_STATS.total) * 100);
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear] = useState(now.getFullYear());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [summary, setSummary] = useState<{ total_days: number; counts: Record<string, number> } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAttendance = useCallback(async () => {
+    if (!parentUuid || !childUuid) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setError(null);
+      const data = await fetchAttendance(parentUuid, childUuid, selectedMonth, selectedYear);
+      setRecords(data.records ?? []);
+      setSummary(data.summary);
+    } catch (err: any) {
+      console.error("[Attendance] load error:", err);
+      setError(err?.response?.data?.message ?? "Failed to load attendance");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [parentUuid, childUuid, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    setLoading(true);
+    loadAttendance();
+  }, [loadAttendance]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadAttendance();
+  }, [loadAttendance]);
+
+  const recordMap = new Map<string, AttendanceRecord>();
+  records.forEach((r) => {
+    const day = new Date(r.attendance_date).getDate();
+    recordMap.set(String(day), r);
+  });
+
+  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+  const firstDay = new Date(selectedYear, selectedMonth - 1, 1).getDay();
+
+  const calendarDays = Array.from({ length: daysInMonth }, (_, i) => {
+    const dayNum = i + 1;
+    const rec = recordMap.get(String(dayNum));
+    const isFuture = dayNum > now.getDate() && selectedMonth >= now.getMonth() + 1 && selectedYear >= now.getFullYear();
+    return { date: dayNum, record: rec ?? null, isFuture };
+  });
+
+  const present = summary?.counts?.present ?? 0;
+  const absent = summary?.counts?.absent ?? 0;
+  const late = summary?.counts?.late ?? 0;
+  const halfDay = summary?.counts?.half_day ?? 0;
+  const total = summary?.total_days ?? 0;
+  const percentage = total > 0 ? Math.round(((present + late + halfDay) / total) * 100) : 0;
 
   const getStatusColor = (status: string | null) => {
     switch (status) {
@@ -73,171 +110,201 @@ export default function AttendanceScreen() {
     }
   };
 
+  const selectedRecord = selectedDay ? recordMap.get(String(selectedDay)) : null;
+
+  const prevMonth = () => {
+    setSelectedMonth((m) => (m === 1 ? 12 : m - 1));
+    setSelectedDay(null);
+  };
+  const nextMonth = () => {
+    setSelectedMonth((m) => (m === 12 ? 1 : m + 1));
+    setSelectedDay(null);
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-surface-background">
-      {/* Header */}
-      <View className="bg-white px-5 pt-4 pb-4 border-b border-slate-100">
+      <View className="bg-white px-5 pt-3 pb-3 border-b border-slate-100">
         <View className="flex-row items-center">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="w-9 h-9 bg-slate-100 rounded-full items-center justify-center mr-3"
+            className="w-8 h-8 items-center justify-center -ml-1 mr-2"
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={20} color="#64748B" />
+            <Ionicons name="chevron-back" size={22} color="#475569" />
           </TouchableOpacity>
-          <Text className="text-slate-800 text-lg font-bold tracking-tight">
-            Attendance
-          </Text>
+          <Text className="text-slate-900 text-lg font-bold tracking-tight">Attendance</Text>
         </View>
       </View>
 
       <ScrollView
         className="flex-1 px-5 pt-5"
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />}
       >
-        {/* Stats Cards Row */}
-        <View className="flex-row gap-3 mb-4">
-          <Card padding="md" className="flex-1 items-center">
-            <Text className="text-green-600 text-2xl font-bold">{MONTHLY_STATS.present}</Text>
-            <Text className="text-slate-400 text-xs mt-1">Present</Text>
-          </Card>
-          <Card padding="md" className="flex-1 items-center">
-            <Text className="text-red-600 text-2xl font-bold">{MONTHLY_STATS.absent}</Text>
-            <Text className="text-slate-400 text-xs mt-1">Absent</Text>
-          </Card>
-          <Card padding="md" className="flex-1 items-center">
-            <Text className="text-amber-600 text-2xl font-bold">{MONTHLY_STATS.late}</Text>
-            <Text className="text-slate-400 text-xs mt-1">Late</Text>
-          </Card>
-        </View>
-
-        {/* Attendance Ring Card */}
-        <Card padding="lg" className="mb-4">
-          <View className="flex-row items-center">
-            {/* Ring visualization */}
-            <View className="w-24 h-24 rounded-full bg-slate-100 items-center justify-center mr-5 relative">
-              <View
-                className="absolute inset-0 rounded-full border-4 border-green-500"
-                style={{
-                  borderLeftColor: percentage > 75 ? "#16A34A" : "#F59E0B",
-                  borderBottomColor: percentage > 75 ? "#16A34A" : "#F59E0B",
-                  borderRightColor: percentage > 75 ? "#16A34A" : "#F59E0B",
-                  transform: [{ rotate: "-45deg" }],
-                }}
-              />
-              <View className="w-20 h-20 bg-white rounded-full items-center justify-center">
-                <Text className="text-slate-800 text-2xl font-bold">{percentage}%</Text>
-              </View>
-            </View>
-            <View className="flex-1">
-              <Text className="text-slate-800 text-base font-bold">
-                Monthly Attendance
-              </Text>
-              <Text className="text-slate-400 text-xs mt-1">
-                {MONTHS[selectedMonth]} 2026
-              </Text>
-              <View className="flex-row items-center mt-2">
-                <Badge label={`${percentage}%`} variant={percentage >= 75 ? "success" : "warning"} />
-                <Text className="text-slate-400 text-xs ml-2">
-                  {percentage >= 75 ? "Good" : "Needs Improvement"}
-                </Text>
-              </View>
-            </View>
+        {loading ? (
+          <View className="items-center justify-center pt-24">
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text className="text-slate-400 text-sm mt-3">Loading attendance...</Text>
           </View>
-        </Card>
-
-        {/* Legend */}
-        <View className="flex-row justify-center gap-4 mb-4">
-          {[
-            { label: "Present", color: "bg-green-500" },
-            { label: "Absent", color: "bg-red-500" },
-            { label: "Late", color: "bg-amber-500" },
-          ].map((item) => (
-            <View key={item.label} className="flex-row items-center">
-              <View className={`w-3 h-3 rounded-full ${item.color} mr-1.5`} />
-              <Text className="text-slate-500 text-xs">{item.label}</Text>
+        ) : error ? (
+          <View className="items-center justify-center pt-20 pb-8">
+            <View className="w-16 h-16 bg-red-50 rounded-full items-center justify-center mb-4">
+              <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
             </View>
-          ))}
-        </View>
-
-        {/* Calendar */}
-        <Card padding="md" className="mb-8">
-          {/* Month Header */}
-          <View className="flex-row items-center justify-between mb-4">
-            <TouchableOpacity className="w-8 h-8 bg-slate-100 rounded-lg items-center justify-center">
-              <Ionicons name="chevron-back" size={18} color="#64748B" />
-            </TouchableOpacity>
-            <Text className="text-slate-800 text-base font-bold">
-              {MONTHS[selectedMonth]} 2026
-            </Text>
-            <TouchableOpacity className="w-8 h-8 bg-slate-100 rounded-lg items-center justify-center">
-              <Ionicons name="chevron-forward" size={18} color="#64748B" />
+            <Text className="text-slate-800 text-base font-semibold mb-2">Connection Error</Text>
+            <Text className="text-slate-400 text-sm text-center mb-6">{error}</Text>
+            <TouchableOpacity
+              className="flex-row items-center bg-primary-600 px-6 py-3 rounded-xl"
+              activeOpacity={0.7}
+              onPress={onRefresh}
+            >
+              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+              <Text className="text-white font-semibold text-sm ml-2">Retry</Text>
             </TouchableOpacity>
           </View>
+        ) : (
+          <>
+            <View className="flex-row gap-3 mb-4">
+              <Card padding="md" className="flex-1 items-center">
+                <Text className="text-green-600 text-xl font-bold">{present + late + halfDay}</Text>
+                <Text className="text-slate-400 text-xs mt-1">Present</Text>
+              </Card>
+              <Card padding="md" className="flex-1 items-center">
+                <Text className="text-red-600 text-xl font-bold">{absent}</Text>
+                <Text className="text-slate-400 text-xs mt-1">Absent</Text>
+              </Card>
+              <Card padding="md" className="flex-1 items-center">
+                <Text className="text-amber-600 text-xl font-bold">{late}</Text>
+                <Text className="text-slate-400 text-xs mt-1">Late</Text>
+              </Card>
+            </View>
 
-          {/* Day Headers */}
-          <View className="flex-row mb-2">
-            {DAYS.map((day) => (
-              <View key={day} className="flex-1 items-center py-1">
-                <Text className="text-slate-400 text-[11px] font-medium">{day}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Calendar Grid */}
-          <View className="flex-row flex-wrap">
-            {/* Empty cells for offset */}
-            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <View key={`empty-${i}`} className="w-[14.28%] aspect-square p-1" />
-            ))}
-            {calendarDays.map((day) => (
-              <TouchableOpacity
-                key={day.date}
-                className="w-[14.28%] aspect-square p-1"
-                onPress={() => setSelectedDay(day.date)}
-              >
-                <View className={`flex-1 rounded-xl items-center justify-center ${
-                  selectedDay === day.date ? "border-2 border-primary-500" : ""
-                } ${day.status === "future" ? "opacity-30" : ""}`}>
-                  {day.status && day.status !== "future" ? (
-                    <Ionicons
-                      name={getStatusIcon(day.status) as any}
-                      size={20}
-                      color={
-                        day.status === "present" ? "#16A34A" :
-                        day.status === "absent" ? "#DC2626" :
-                        "#F59E0B"
-                      }
-                    />
-                  ) : (
-                    <Text className={`text-xs ${
-                      day.status === "future" ? "text-slate-300" : "text-slate-600"
-                    }`}>
-                      {day.date}
-                    </Text>
-                  )}
+            <Card padding="lg" className="mb-4">
+              <View className="flex-row items-center">
+                <View className="w-20 h-20 rounded-full bg-slate-100 items-center justify-center mr-4 relative">
+                  <View
+                    className="absolute inset-0 rounded-full border-4"
+                    style={{
+                      borderColor: percentage >= 75 ? "#16A34A" : percentage >= 50 ? "#F59E0B" : "#DC2626",
+                      borderLeftColor: "#E2E8F0",
+                      borderBottomColor: "#E2E8F0",
+                      transform: [{ rotate: "-45deg" }],
+                    }}
+                  />
+                  <View className="w-[60px] h-[60px] bg-white rounded-full items-center justify-center">
+                    <Text className="text-slate-900 text-xl font-bold">{percentage}%</Text>
+                  </View>
                 </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Card>
+                <View className="flex-1">
+                  <Text className="text-slate-900 text-base font-bold">Monthly Attendance</Text>
+                  <Text className="text-slate-400 text-xs mt-1">{MONTHS[selectedMonth - 1]} {selectedYear}</Text>
+                  <View className="flex-row items-center mt-2">
+                    <Badge label={`${percentage}%`} variant={percentage >= 75 ? "success" : "warning"} />
+                    <Text className="text-slate-400 text-xs ml-2">
+                      {percentage >= 75 ? "Good" : "Needs Improvement"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Card>
 
-        {/* Selected Day Detail */}
-        {selectedDay && (
-          <Card padding="md" className="mb-8">
-            <Text className="text-slate-800 text-sm font-bold mb-2">
-              {DAYS[new Date(2026, selectedMonth, selectedDay).getDay()]}, {selectedDay} {MONTHS[selectedMonth]} 2026
-            </Text>
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 bg-green-50 rounded-xl items-center justify-center mr-3">
-                <Ionicons name="checkmark-circle" size={22} color="#16A34A" />
-              </View>
-              <View>
-                <Text className="text-slate-800 text-sm font-semibold">Present</Text>
-                <Text className="text-slate-400 text-xs mt-0.5">Regular class day</Text>
-              </View>
+            <View className="flex-row justify-center gap-4 mb-4">
+              {[
+                { label: "Present", color: "bg-green-500" },
+                { label: "Absent", color: "bg-red-500" },
+                { label: "Late", color: "bg-amber-500" },
+              ].map((item) => (
+                <View key={item.label} className="flex-row items-center">
+                  <View className={`w-2.5 h-2.5 rounded-full ${item.color} mr-1.5`} />
+                  <Text className="text-slate-500 text-xs">{item.label}</Text>
+                </View>
+              ))}
             </View>
-          </Card>
+
+            <Card padding="md" className="mb-8">
+              <View className="flex-row items-center justify-between mb-4">
+                <TouchableOpacity className="w-8 h-8 bg-slate-100 rounded-lg items-center justify-center" onPress={prevMonth}>
+                  <Ionicons name="chevron-back" size={18} color="#64748B" />
+                </TouchableOpacity>
+                <Text className="text-slate-900 text-base font-bold">{MONTHS[selectedMonth - 1]} {selectedYear}</Text>
+                <TouchableOpacity className="w-8 h-8 bg-slate-100 rounded-lg items-center justify-center" onPress={nextMonth}>
+                  <Ionicons name="chevron-forward" size={18} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <View className="flex-row mb-2">
+                {DAYS.map((day) => (
+                  <View key={day} className="flex-1 items-center py-1">
+                    <Text className="text-slate-400 text-[11px] font-medium">{day}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View className="flex-row flex-wrap">
+                {Array.from({ length: firstDay }).map((_, i) => (
+                  <View key={`empty-${i}`} className="w-[14.28%] aspect-square p-1" />
+                ))}
+                {calendarDays.map((day) => {
+                  const status = day.record?.status ?? (day.isFuture ? "future" : null);
+                  return (
+                    <TouchableOpacity
+                      key={day.date}
+                      className="w-[14.28%] aspect-square p-1"
+                      onPress={() => setSelectedDay(day.date)}
+                    >
+                      <View className={`flex-1 rounded-xl items-center justify-center ${selectedDay === day.date ? "border-2 border-primary-500" : ""} ${day.isFuture ? "opacity-30" : ""}`}>
+                        {status && status !== "future" ? (
+                          <Ionicons
+                            name={getStatusIcon(status) as any}
+                            size={20}
+                            color={status === "present" ? "#16A34A" : status === "absent" ? "#DC2626" : "#F59E0B"}
+                          />
+                        ) : (
+                          <Text className={`text-xs ${day.isFuture ? "text-slate-300" : "text-slate-600"}`}>
+                            {day.date}
+                          </Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </Card>
+
+            {selectedDay && (
+              <Card padding="md" className="mb-8">
+                <Text className="text-slate-900 text-sm font-bold mb-2">
+                  {DAYS[new Date(selectedYear, selectedMonth - 1, selectedDay).getDay()]}, {selectedDay} {MONTHS[selectedMonth - 1]} {selectedYear}
+                </Text>
+                {selectedRecord ? (
+                  <View className="flex-row items-center">
+                    <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${selectedRecord.status === "present" ? "bg-green-50" : selectedRecord.status === "absent" ? "bg-red-50" : "bg-amber-50"}`}>
+                      <Ionicons
+                        name={getStatusIcon(selectedRecord.status) as any}
+                        size={22}
+                        color={selectedRecord.status === "present" ? "#16A34A" : selectedRecord.status === "absent" ? "#DC2626" : "#F59E0B"}
+                      />
+                    </View>
+                    <View>
+                      <Text className="text-slate-800 text-sm font-semibold">
+                        {getStatusLabel(selectedRecord.status)}
+                      </Text>
+                      {selectedRecord.remark && (
+                        <Text className="text-slate-400 text-xs mt-0.5">{selectedRecord.remark}</Text>
+                      )}
+                    </View>
+                  </View>
+                ) : (
+                  <View className="flex-row items-center">
+                    <View className="w-10 h-10 bg-slate-100 rounded-xl items-center justify-center mr-3">
+                      <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                    </View>
+                    <Text className="text-slate-400 text-sm">No record / Holiday</Text>
+                  </View>
+                )}
+              </Card>
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>

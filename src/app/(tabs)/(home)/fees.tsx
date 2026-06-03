@@ -1,230 +1,253 @@
-import { useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity } from "react-native";
+import { useState, useEffect, useCallback } from "react";
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useAuthStore } from "@/store/auth.store";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/EmptyState";
-
-const FEE_SUMMARY = {
-  total: 45000,
-  paid: 32500,
-  due: 12500,
-};
-
-const FEE_HISTORY = [
-  { id: 1, type: "Tuition Fee", amount: 5000, paid: 5000, due: 0, due_date: "05 Apr 2026", status: "paid" as const },
-  { id: 2, type: "Transport Fee", amount: 2500, paid: 2500, due: 0, due_date: "05 Apr 2026", status: "paid" as const },
-  { id: 3, type: "Library Fee", amount: 1000, paid: 1000, due: 0, due_date: "10 Apr 2026", status: "paid" as const },
-  { id: 4, type: "Tuition Fee", amount: 5000, paid: 5000, due: 0, due_date: "05 May 2026", status: "paid" as const },
-  { id: 5, type: "Transport Fee", amount: 2500, paid: 2500, due: 0, due_date: "05 May 2026", status: "paid" as const },
-  { id: 6, type: "Tuition Fee", amount: 5000, paid: 0, due: 5000, due_date: "05 Jun 2026", status: "unpaid" as const },
-  { id: 7, type: "Activity Fee", amount: 2000, paid: 0, due: 2000, due_date: "15 Jun 2026", status: "unpaid" as const },
-  { id: 8, type: "Annual Sports Fee", amount: 3000, paid: 0, due: 3000, due_date: "20 Jun 2026", status: "unpaid" as const },
-  { id: 9, type: "Exam Fee", amount: 1500, paid: 1500, due: 0, due_date: "01 Jun 2026", status: "paid" as const },
-  { id: 10, type: "Computer Lab Fee", amount: 1000, paid: 0, due: 1000, due_date: "25 Jun 2026", status: "unpaid" as const },
-];
-
-const PAYMENT_HISTORY = FEE_HISTORY.filter(f => f.status === "paid").slice(0, 4);
+import { fetchFees } from "@/services/api";
+import type { StudentFee } from "@/types";
 
 export default function FeesScreen() {
   const [activeTab, setActiveTab] = useState<"overview" | "history">("overview");
+  const [fees, setFees] = useState<StudentFee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const paidPercentage = Math.round((FEE_SUMMARY.paid / FEE_SUMMARY.total) * 100);
+  const parentUuid = useAuthStore((s) => s.parentUuid);
+  const students = useAuthStore((s) => s.students);
+  const selectedStudentUuid = useAuthStore((s) => s.selectedStudentUuid);
+  const childUuid = selectedStudentUuid ?? students?.[0]?.uuid;
+
+  const loadFees = useCallback(async () => {
+    if (!parentUuid || !childUuid) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setError(null);
+      const result = await fetchFees(parentUuid, childUuid);
+      setFees(result);
+    } catch (err: any) {
+      setError(err?.response?.data?.message ?? "Failed to load fees");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [parentUuid, childUuid]);
+
+  useEffect(() => {
+    loadFees();
+  }, [loadFees]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadFees();
+  }, [loadFees]);
+
+  const totalAmount = fees.reduce((s, f) => s + (f.total_amount ?? 0), 0);
+  const totalPaid = fees.reduce((s, f) => s + (f.total_paid ?? 0), 0);
+  const totalDue = fees.reduce((s, f) => s + (f.total_balance ?? 0), 0);
+  const paidPercentage = totalAmount > 0 ? Math.round((totalPaid / totalAmount) * 100) : 0;
+
+  const unpaidFees = fees.filter((f) => f.status === "unpaid" || f.status === "partial");
+  const paidFees = fees.filter((f) => f.status === "paid");
 
   return (
     <SafeAreaView className="flex-1 bg-surface-background">
-      {/* Header */}
-      <View className="bg-white px-5 pt-4 pb-4 border-b border-slate-100">
+      <View className="bg-white px-5 pt-3 pb-3 border-b border-slate-100">
         <View className="flex-row items-center">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="w-9 h-9 bg-slate-100 rounded-full items-center justify-center mr-3"
+            className="w-8 h-8 items-center justify-center -ml-1 mr-2"
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={20} color="#64748B" />
+            <Ionicons name="chevron-back" size={22} color="#475569" />
           </TouchableOpacity>
-          <Text className="text-slate-800 text-lg font-bold tracking-tight">
-            Fees
-          </Text>
+          <Text className="text-slate-900 text-lg font-bold tracking-tight">Fees</Text>
         </View>
       </View>
 
       <ScrollView
         className="flex-1 px-5 pt-5"
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#10B981" colors={["#10B981"]} />}
       >
-        {/* Hero Summary Card */}
-        <Card padding="lg" className="mb-4">
-          <View className="flex-row items-center justify-between mb-4">
-            <View>
-              <Text className="text-slate-400 text-xs font-medium uppercase tracking-wider">
-                Total Fees
-              </Text>
-              <Text className="text-slate-800 text-3xl font-bold mt-1">
-                ₹{FEE_SUMMARY.total.toLocaleString()}
-              </Text>
-            </View>
-            <View className="w-14 h-14 bg-green-50 rounded-2xl items-center justify-center">
-              <Ionicons name="wallet-outline" size={28} color="#16A34A" />
-            </View>
+        {loading ? (
+          <View className="items-center justify-center pt-24">
+            <ActivityIndicator size="large" color="#10B981" />
+            <Text className="text-slate-400 text-sm mt-3">Loading fees...</Text>
           </View>
-
-          {/* Progress Bar */}
-          <View className="bg-slate-100 rounded-full h-3 mb-4 overflow-hidden">
-            <View
-              className="h-full rounded-full bg-green-500"
-              style={{ width: `${paidPercentage}%` }}
-            />
+        ) : error ? (
+          <View className="items-center justify-center pt-20 pb-8">
+            <View className="w-16 h-16 bg-red-50 rounded-full items-center justify-center mb-4">
+              <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
+            </View>
+            <Text className="text-slate-800 text-base font-semibold mb-2">Connection Error</Text>
+            <Text className="text-slate-400 text-sm text-center mb-6">{error}</Text>
+            <TouchableOpacity
+              className="flex-row items-center bg-primary-600 px-6 py-3 rounded-xl"
+              activeOpacity={0.7}
+              onPress={onRefresh}
+            >
+              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+              <Text className="text-white font-semibold text-sm ml-2">Retry</Text>
+            </TouchableOpacity>
           </View>
-
-          <View className="flex-row justify-between">
-            <View className="items-center flex-1">
-              <Text className="text-slate-800 text-lg font-bold text-green-600">
-                ₹{FEE_SUMMARY.paid.toLocaleString()}
-              </Text>
-              <Text className="text-slate-400 text-xs mt-0.5">Paid</Text>
+        ) : fees.length === 0 ? (
+          <View className="items-center justify-center pt-16 px-8">
+            <View className="w-16 h-16 bg-slate-100 rounded-full items-center justify-center mb-4">
+              <Ionicons name="wallet-outline" size={28} color="#94A3B8" />
             </View>
-            <View className="w-px bg-slate-100" />
-            <View className="items-center flex-1">
-              <Text className="text-slate-800 text-lg font-bold text-amber-600">
-                ₹{FEE_SUMMARY.due.toLocaleString()}
-              </Text>
-              <Text className="text-slate-400 text-xs mt-0.5">Due</Text>
-            </View>
+            <Text className="text-slate-700 text-base font-semibold text-center">No Fee Records</Text>
+            <Text className="text-slate-400 text-sm text-center mt-1.5 leading-5">Fee information will appear here once published by the school</Text>
           </View>
-        </Card>
-
-        {/* Due Alerts */}
-        {FEE_HISTORY.filter(f => f.status === "unpaid").length > 0 && (
-          <Card padding="md" className="mb-4 bg-amber-50 border-amber-200">
-            <View className="flex-row items-center">
-              <View className="w-10 h-10 bg-amber-100 rounded-xl items-center justify-center mr-3">
-                <Ionicons name="alert-circle" size={22} color="#F59E0B" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-amber-800 text-sm font-bold">
-                  {FEE_HISTORY.filter(f => f.status === "unpaid").length} Payments Due
-                </Text>
-                <Text className="text-amber-600 text-xs mt-0.5">
-                  Total due: ₹{FEE_HISTORY.filter(f => f.status === "unpaid").reduce((s, f) => s + f.due, 0).toLocaleString()}
-                </Text>
-              </View>
-              <TouchableOpacity className="px-3 py-1.5 bg-amber-500 rounded-lg">
-                <Text className="text-white text-xs font-bold">Pay Now</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-        )}
-
-        {/* Tabs */}
-        <View className="flex-row bg-slate-100 rounded-xl p-1 mb-4">
-          <TouchableOpacity
-            className={`flex-1 py-2.5 rounded-lg items-center ${
-              activeTab === "overview" ? "bg-white shadow-sm" : ""
-            }`}
-            onPress={() => setActiveTab("overview")}
-          >
-            <Text className={`text-sm font-semibold ${
-              activeTab === "overview" ? "text-primary-600" : "text-slate-500"
-            }`}>
-              Fee Structure
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className={`flex-1 py-2.5 rounded-lg items-center ${
-              activeTab === "history" ? "bg-white shadow-sm" : ""
-            }`}
-            onPress={() => setActiveTab("history")}
-          >
-            <Text className={`text-sm font-semibold ${
-              activeTab === "history" ? "text-primary-600" : "text-slate-500"
-            }`}>
-              Payment History
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {activeTab === "overview" ? (
-          /* Fee Structure List */
-          <Card padding="none" className="overflow-hidden mb-8">
-            {FEE_HISTORY.map((fee, index) => (
-              <View
-                key={fee.id}
-                className={`flex-row items-center px-4 py-3.5 ${
-                  index < FEE_HISTORY.length - 1 ? "border-b border-slate-50" : ""
-                }`}
-              >
-                <View className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${
-                  fee.status === "paid" ? "bg-green-50" : "bg-red-50"
-                }`}>
-                  <Ionicons
-                    name={fee.status === "paid" ? "checkmark-circle" : "alert-circle"}
-                    size={20}
-                    color={fee.status === "paid" ? "#16A34A" : "#DC2626"}
-                  />
-                </View>
-                <View className="flex-1">
-                  <View className="flex-row items-center">
-                    <Text className="text-slate-800 text-sm font-semibold flex-1">
-                      {fee.type}
-                    </Text>
-                    <Text className="text-slate-800 text-sm font-bold">
-                      ₹{fee.amount.toLocaleString()}
-                    </Text>
-                  </View>
-                  <View className="flex-row items-center mt-0.5">
-                    <Text className="text-slate-400 text-xs">Due: {fee.due_date}</Text>
-                    <View className="ml-2">
-                      <Badge
-                        label={fee.status === "paid" ? "Paid" : "Unpaid"}
-                        variant={fee.status === "paid" ? "success" : "error"}
-                      />
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ))}
-          </Card>
         ) : (
-          /* Payment History */
-          <Card padding="none" className="overflow-hidden mb-8">
-            {PAYMENT_HISTORY.length > 0 ? (
-              PAYMENT_HISTORY.map((payment, index) => (
-                <View
-                  key={payment.id}
-                  className={`flex-row items-center px-4 py-3.5 ${
-                    index < PAYMENT_HISTORY.length - 1 ? "border-b border-slate-50" : ""
-                  }`}
-                >
-                  <View className="w-10 h-10 bg-green-50 rounded-xl items-center justify-center mr-3">
-                    <Ionicons name="receipt-outline" size={20} color="#16A34A" />
+          <>
+            <Card padding="lg" className="mb-4">
+              <View className="flex-row items-center justify-between mb-4">
+                <View>
+                  <Text className="text-slate-500 text-xs font-medium uppercase tracking-wider">Total Fees</Text>
+                  <Text className="text-slate-900 text-3xl font-bold mt-1">₹{totalAmount.toLocaleString()}</Text>
+                </View>
+                <View className="w-12 h-12 bg-green-50 rounded-2xl items-center justify-center">
+                  <Ionicons name="wallet-outline" size={24} color="#16A34A" />
+                </View>
+              </View>
+
+              <View className="bg-slate-100 rounded-full h-2.5 mb-4 overflow-hidden">
+                <View className="h-full rounded-full bg-green-500" style={{ width: `${paidPercentage}%` }} />
+              </View>
+
+              <View className="flex-row justify-between">
+                <View className="items-center flex-1">
+                  <Text className="text-green-600 text-lg font-bold">₹{totalPaid.toLocaleString()}</Text>
+                  <Text className="text-slate-400 text-xs mt-0.5">Paid</Text>
+                </View>
+                <View className="w-px bg-slate-100" />
+                <View className="items-center flex-1">
+                  <Text className="text-amber-600 text-lg font-bold">₹{totalDue.toLocaleString()}</Text>
+                  <Text className="text-slate-400 text-xs mt-0.5">Due</Text>
+                </View>
+              </View>
+            </Card>
+
+            {unpaidFees.length > 0 && (
+              <View className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+                <View className="flex-row items-center">
+                  <View className="w-10 h-10 bg-amber-100 rounded-xl items-center justify-center mr-3">
+                    <Ionicons name="alert-circle" size={22} color="#F59E0B" />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-slate-800 text-sm font-semibold">
-                      {payment.type}
-                    </Text>
-                    <Text className="text-slate-400 text-xs mt-0.5">
-                      Paid on {payment.due_date}
-                    </Text>
+                    <Text className="text-amber-800 text-sm font-bold">{unpaidFees.length} Payments Due</Text>
+                    <Text className="text-amber-600 text-xs mt-0.5">Total due: ₹{totalDue.toLocaleString()}</Text>
                   </View>
-                  <TouchableOpacity className="px-3 py-1.5 bg-slate-100 rounded-lg mr-2">
-                    <Text className="text-slate-600 text-xs font-semibold">Receipt</Text>
+                  <TouchableOpacity className="px-3 py-2 bg-amber-500 rounded-lg">
+                    <Text className="text-white text-xs font-bold">Pay Now</Text>
                   </TouchableOpacity>
-                  <Text className="text-green-600 text-sm font-bold">
-                    ₹{payment.paid.toLocaleString()}
-                  </Text>
                 </View>
-              ))
-            ) : (
-              <EmptyState
-                icon="receipt-outline"
-                title="No Payment History"
-                description="Your payment records will appear here"
-              />
+              </View>
             )}
-          </Card>
+
+            <View className="flex-row bg-slate-100 rounded-xl p-1 mb-4">
+              <TouchableOpacity
+                className={`flex-1 py-2.5 rounded-lg items-center ${activeTab === "overview" ? "bg-white" : ""}`}
+                onPress={() => setActiveTab("overview")}
+              >
+                <Text className={`text-sm font-semibold ${activeTab === "overview" ? "text-primary-600" : "text-slate-500"}`}>
+                  Fee Structure
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className={`flex-1 py-2.5 rounded-lg items-center ${activeTab === "history" ? "bg-white" : ""}`}
+                onPress={() => setActiveTab("history")}
+              >
+                <Text className={`text-sm font-semibold ${activeTab === "history" ? "text-primary-600" : "text-slate-500"}`}>
+                  Payment History
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {activeTab === "overview" && (
+              <View className="gap-3 mb-8">
+                {fees.map((fee) => {
+                  const items = fee.items ?? [];
+                  const dueDate = items.find((i) => i.due_date)?.due_date ?? fee.assigned_at;
+                  const statusColor = fee.status === "paid" ? "#16A34A" : fee.status === "partial" ? "#D97706" : "#DC2626";
+                  const statusBg = fee.status === "paid" ? "bg-green-50" : fee.status === "partial" ? "bg-amber-50" : "bg-red-50";
+                  const statusText = fee.status === "paid" ? "text-green-700" : fee.status === "partial" ? "text-amber-700" : "text-red-700";
+                  return (
+                    <Card key={fee.id} padding="none" className="overflow-hidden">
+                      <View className="flex-row items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+                        <Text className="text-slate-800 text-sm font-semibold">
+                          {dueDate ? `Due: ${new Date(dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : `Fee #${fee.id}`}
+                        </Text>
+                        <View className={`px-2.5 py-1 rounded-lg ${statusBg}`}>
+                          <Text className={`text-xs font-bold ${statusText}`}>
+                            {fee.status === "paid" ? "Paid" : fee.status === "partial" ? "Partial" : "Unpaid"}
+                          </Text>
+                        </View>
+                      </View>
+                      {items.map((item) => (
+                        <View key={item.id} className="flex-row items-center px-4 py-3 border-b border-slate-50">
+                          <View className="w-2 h-2 rounded-full bg-slate-300 mr-3" />
+                          <Text className="flex-1 text-slate-600 text-sm">{item.fee_category ?? `Item #${item.id}`}</Text>
+                          <Text className="text-slate-800 text-sm font-semibold mr-3">₹{item.amount.toLocaleString()}</Text>
+                          <Text className={`text-sm font-medium ${item.paid > 0 ? "text-green-600" : "text-slate-400"}`}>
+                            {item.paid > 0 ? `₹${item.paid.toLocaleString()}` : "—"}
+                          </Text>
+                        </View>
+                      ))}
+                      <View className="flex-row items-center px-4 py-3 bg-slate-50/50">
+                        <Text className="flex-1 text-slate-500 text-xs">
+                          <Text className="font-semibold">Total:</Text> ₹{fee.total_amount.toLocaleString()}
+                        </Text>
+                        <Text className="text-amber-600 text-xs">
+                          <Text className="font-semibold">Balance:</Text> ₹{fee.total_balance.toLocaleString()}
+                        </Text>
+                      </View>
+                    </Card>
+                  );
+                })}
+              </View>
+            )}
+
+            {activeTab === "history" && (
+              <Card padding="none" className="overflow-hidden mb-8">
+                {paidFees.length > 0 ? (
+                  paidFees.map((fee, index) => {
+                    const items = fee.items ?? [];
+                    return (
+                      <View key={fee.id} className={`flex-row items-center px-4 py-3.5 ${index < paidFees.length - 1 ? "border-b border-slate-50" : ""}`}>
+                        <View className="w-10 h-10 bg-green-50 rounded-xl items-center justify-center mr-3">
+                          <Ionicons name="receipt-outline" size={20} color="#16A34A" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-slate-800 text-sm font-semibold">{items[0]?.fee_category ?? `Fee #${fee.id}`}</Text>
+                          <Text className="text-slate-400 text-xs mt-0.5">
+                            {fee.assigned_at ? `Paid on ${new Date(fee.assigned_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                          </Text>
+                        </View>
+                        <TouchableOpacity className="px-3 py-1.5 bg-slate-100 rounded-lg mr-2">
+                          <Text className="text-slate-600 text-xs font-semibold">Receipt</Text>
+                        </TouchableOpacity>
+                        <Text className="text-green-600 text-sm font-bold">₹{fee.total_paid.toLocaleString()}</Text>
+                      </View>
+                    );
+                  })
+                ) : (
+                  <View className="items-center justify-center py-12 px-8">
+                    <View className="w-16 h-16 bg-slate-100 rounded-full items-center justify-center mb-4">
+                      <Ionicons name="receipt-outline" size={28} color="#94A3B8" />
+                    </View>
+                    <Text className="text-slate-700 text-base font-semibold text-center">No Payment History</Text>
+                    <Text className="text-slate-400 text-sm text-center mt-1.5">Your payment records will appear here</Text>
+                  </View>
+                )}
+              </Card>
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>

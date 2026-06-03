@@ -14,7 +14,7 @@ export function ErrorState({
   retryLabel = "Try Again",
 }: ErrorStateProps) {
   return (
-    <View className="items-center justify-center py-12 px-8">
+    <View className="items-center justify-center py-16 px-8">
       <View className="w-16 h-16 bg-red-50 rounded-full items-center justify-center mb-4">
         <Ionicons name="alert-circle-outline" size={28} color="#DC2626" />
       </View>
@@ -25,7 +25,7 @@ export function ErrorState({
         {message}
       </Text>
       {onRetry && (
-        <View className="mt-4">
+        <View className="mt-5">
           <Button
             title={retryLabel}
             onPress={onRetry}

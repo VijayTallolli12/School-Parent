@@ -11,10 +11,8 @@ interface CardProps {
 }
 
 const variantStyles = {
-  elevated:
-    "bg-white border border-slate-100",
-  outlined:
-    "bg-white border border-slate-200",
+  elevated: "bg-white border border-slate-100",
+  outlined: "bg-white border border-slate-200",
 };
 
 const paddingStyles = {
@@ -39,22 +37,24 @@ export function Card({
     className,
   ].join(" ");
 
+  const shadowStyle =
+    variant === "elevated"
+      ? {
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 4,
+          elevation: 0.5,
+        }
+      : undefined;
+
   if (onPress) {
     return (
       <TouchableOpacity
         onPress={onPress}
         activeOpacity={0.7}
         className={baseStyles}
-        style={[
-          variant === "elevated" && {
-            shadowColor: "#1E293B",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.06,
-            shadowRadius: 8,
-            elevation: 2,
-          },
-          style,
-        ]}
+        style={[shadowStyle, style]}
       >
         {children}
       </TouchableOpacity>
@@ -62,19 +62,7 @@ export function Card({
   }
 
   return (
-    <View
-      className={baseStyles}
-      style={[
-        variant === "elevated" && {
-          shadowColor: "#1E293B",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          elevation: 2,
-        },
-        style,
-      ]}
-    >
+    <View className={baseStyles} style={[shadowStyle, style]}>
       {children}
     </View>
   );

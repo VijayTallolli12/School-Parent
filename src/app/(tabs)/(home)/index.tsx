@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,264 +13,383 @@ import { useAuthStore } from "@/store/auth.store";
 import { router } from "expo-router";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { ChildSwitcher } from "@/components/ChildSwitcher";
+import { fetchDashboard } from "@/services/api";
+import type { DashboardData, NotificationItem } from "@/types";
 
 const MODULES = [
-  { icon: "calendar-outline", label: "Attendance", color: "#3B82F6", route: "attendance" },
-  { icon: "cash-outline", label: "Fees", color: "#10B981", route: "fees" },
-  { icon: "book-outline", label: "Homework", color: "#F59E0B", route: null },
-  { icon: "notifications-outline", label: "Notices", color: "#EF4444", route: "notifications" },
-  { icon: "time-outline", label: "Timetable", color: "#8B5CF6", route: "timetable" },
-  { icon: "trophy-outline", label: "Results", color: "#EC4899", route: "results" },
-  { icon: "document-text-outline", label: "Leave", color: "#06B6D4", route: null },
-  { icon: "settings-outline", label: "Settings", color: "#6B7280", route: null },
+  { icon: "calendar-outline" as const, label: "Attendance", color: "#3B82F6", route: "attendance" },
+  { icon: "cash-outline" as const, label: "Fees", color: "#10B981", route: "fees" },
+  { icon: "notifications-outline" as const, label: "Notices", color: "#EF4444", route: "notifications" },
+  { icon: "time-outline" as const, label: "Timetable", color: "#8B5CF6", route: "timetable" },
+  { icon: "trophy-outline" as const, label: "Results", color: "#EC4899", route: "results" },
+  { icon: "book-outline" as const, label: "Homework", color: "#F59E0B", route: null },
+  { icon: "document-text-outline" as const, label: "Leave", color: "#06B6D4", route: null },
+  { icon: "settings-outline" as const, label: "Settings", color: "#6B7280", route: null },
 ];
 
-const RECENT_NOTIFICATIONS = [
-  { id: 1, title: "Fee Reminder", body: "Tuition fee for May is due on 25th", type: "fees", time: "2 hours ago", is_read: false },
-  { id: 2, title: "Attendance Alert", body: "Your child was marked absent today", type: "attendance", time: "1 day ago", is_read: false },
-  { id: 3, title: "Exam Schedule", body: "Mid-term exams start June 10", type: "result", time: "3 days ago", is_read: true },
-];
+const NOTIF_TYPE_CONFIG: Record<string, { icon: string; bg: string; color: string }> = {
+  fees: { icon: "wallet-outline", bg: "bg-amber-50", color: "#F59E0B" },
+  attendance: { icon: "calendar-outline", bg: "bg-blue-50", color: "#3B82F6" },
+  result: { icon: "school-outline", bg: "bg-purple-50", color: "#8B5CF6" },
+  general: { icon: "megaphone-outline", bg: "bg-slate-50", color: "#64748B" },
+  homework: { icon: "book-outline", bg: "bg-orange-50", color: "#F97316" },
+};
 
-const UPCOMING_EXAMS = [
-  { subject: "Mathematics", date: "Jun 10", time: "09:00 AM" },
-  { subject: "Science", date: "Jun 12", time: "09:00 AM" },
-  { subject: "English", date: "Jun 14", time: "09:00 AM" },
-];
+function formatCompactCurrency(amount: number): string {
+  if (amount >= 100000) {
+    const lakhs = amount / 100000;
+    return `₹${lakhs % 1 === 0 ? lakhs.toFixed(0) : lakhs.toFixed(1)}L`;
+  }
+  if (amount >= 1000) {
+    const thousands = amount / 1000;
+    return `₹${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(1)}K`;
+  }
+  return `₹${amount}`;
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const diffHrs = Math.floor(diffMs / 3600000);
+  if (diffHrs < 1) return "Just now";
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  const diffDays = Math.floor(diffHrs / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
 
 export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const user = useAuthStore((s) => s.user);
-  const students = useAuthStore((s) => s.students);
+  const students = useAuthStore((s) => s.students) ?? [];
+  const parentUuid = useAuthStore((s) => s.parentUuid);
+  const selectedStudentUuid = useAuthStore((s) => s.selectedStudentUuid);
+  const setSelectedStudentUuid = useAuthStore((s) => s.setSelectedStudentUuid);
+  const hasStudents = students.length > 0;
 
-  const onRefresh = useCallback(() => {
+  const loadDashboard = useCallback(async () => {
+    if (!parentUuid) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setError(null);
+      const result = await fetchDashboard(parentUuid, selectedStudentUuid ?? undefined);
+      setData(result);
+    } catch (err: any) {
+      console.error("[Dashboard] load error:", err);
+      setError(err?.response?.data?.message ?? "Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }, [parentUuid, selectedStudentUuid]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1500);
-  }, []);
+    await loadDashboard();
+    setRefreshing(false);
+  }, [loadDashboard]);
 
-  const firstStudent = students[0];
+  const notificationCount = data?.notifications?.filter((n) => !n.is_read).length ?? 0;
+  const attSummary = data?.attendance_summary;
+  const feesSummary = data?.fees_summary;
+  const notifs = data?.notifications ?? [];
+  const examsSummary = data?.exam_results_summary;
+
+  const handleOpenNotification = useCallback((item: NotificationItem) => {
+    if (!item || !item.id) return;
+    router.push({
+      pathname: "/notifications/[id]",
+      params: {
+        id: String(item.id),
+        title: item.title ?? "",
+        body: item.body ?? "",
+        type: item.type ?? "general",
+        is_read: String(!!item.is_read),
+        created_at: item.created_at ?? "",
+      },
+    });
+  }, []);
 
   return (
     <SafeAreaView className="flex-1 bg-surface-background">
-      {/* Header */}
-      <View className="bg-white px-5 pt-4 pb-4 border-b border-slate-100">
+      <View className="bg-white px-5 pt-3 pb-3 border-b border-slate-100">
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
-            <Text className="text-slate-400 text-xs font-medium uppercase tracking-wider">
-              Welcome back,
-            </Text>
-            <Text className="text-slate-800 text-xl font-bold mt-0.5">
-              {user?.name || "Parent"}
+            <Text className="text-slate-500 text-xs font-medium">Welcome back</Text>
+            <Text className="text-slate-900 text-lg font-bold mt-0.5">
+              {user?.name ?? "Parent"}
             </Text>
           </View>
           <TouchableOpacity
-            className="w-10 h-10 bg-slate-100 rounded-full items-center justify-center relative"
+            className="w-9 h-9 bg-slate-100 rounded-full items-center justify-center relative"
             activeOpacity={0.7}
+            onPress={() => router.push("/notifications" as any)}
           >
             <Ionicons name="notifications-outline" size={20} color="#64748B" />
-            <View className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-status-error rounded-full items-center justify-center">
-              <Text className="text-white text-[9px] font-bold">3</Text>
-            </View>
+            {notificationCount > 0 && (
+              <View className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-status-error rounded-full items-center justify-center">
+                <Text className="text-white text-[9px] font-bold">{notificationCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* Student Chip */}
-        {firstStudent && (
-          <TouchableOpacity
-            className="flex-row items-center bg-primary-50 border border-primary-100 rounded-xl px-3.5 py-2.5 mt-3"
-            activeOpacity={0.7}
-            onPress={() => {
-              console.log("[Dashboard] Navigating to student-profile");
-              router.push("/(tabs)/(home)/student-profile" as any);
-            }}
-          >
-            <View className="w-9 h-9 bg-primary-200 rounded-full items-center justify-center mr-3">
-              <Text className="text-primary-700 font-bold text-sm">
-                {firstStudent.name.charAt(0)}
-              </Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-slate-800 font-semibold text-sm">
-                {firstStudent.name}
-              </Text>
-              <Text className="text-slate-500 text-xs">
-                Class {firstStudent.class}-{firstStudent.section} • Roll: {firstStudent.roll_number}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
-          </TouchableOpacity>
-        )}
+        <View className="mt-3">
+          <ChildSwitcher
+            selectedUuid={selectedStudentUuid}
+            onSelect={(uuid) => setSelectedStudentUuid(uuid)}
+          />
+        </View>
       </View>
 
       <ScrollView
         className="flex-1 px-5"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#3B82F6"
-            colors={["#3B82F6"]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" colors={["#3B82F6"]} />
         }
       >
-        {/* Stats Row */}
-        <View className="flex-row gap-3 mt-5 mb-6">
-          <Card padding="md" className="flex-1 items-center">
-            <View className="w-10 h-10 bg-green-50 rounded-xl items-center justify-center mb-2">
-              <Ionicons name="checkmark-circle" size={22} color="#16A34A" />
+        {loading ? (
+          <View className="items-center justify-center pt-24 pb-8">
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text className="text-slate-400 text-sm mt-3">Loading dashboard...</Text>
+          </View>
+        ) : error ? (
+          <View className="items-center justify-center pt-20 pb-8">
+            <View className="w-16 h-16 bg-red-50 rounded-full items-center justify-center mb-4">
+              <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
             </View>
-            <Text className="text-slate-800 text-lg font-bold">92%</Text>
-            <Text className="text-slate-400 text-xs mt-0.5">Attendance</Text>
-          </Card>
-          <Card padding="md" className="flex-1 items-center">
-            <View className="w-10 h-10 bg-amber-50 rounded-xl items-center justify-center mb-2">
-              <Ionicons name="wallet-outline" size={22} color="#F59E0B" />
-            </View>
-            <Text className="text-slate-800 text-lg font-bold">₹2,500</Text>
-            <Text className="text-slate-400 text-xs mt-0.5">Due Fees</Text>
-          </Card>
-          <Card padding="md" className="flex-1 items-center">
-            <View className="w-10 h-10 bg-purple-50 rounded-xl items-center justify-center mb-2">
-              <Ionicons name="book-outline" size={22} color="#8B5CF6" />
-            </View>
-            <Text className="text-slate-800 text-lg font-bold">3</Text>
-            <Text className="text-slate-400 text-xs mt-0.5">Homework</Text>
-          </Card>
-        </View>
-
-        {/* Quick Actions */}
-        <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-3">
-          Quick Actions
-        </Text>
-        <View className="flex-row flex-wrap gap-3 mb-6">
-          {MODULES.map((module) => (
+            <Text className="text-slate-800 text-lg font-bold text-center mb-2">Connection Error</Text>
+            <Text className="text-slate-400 text-sm text-center leading-5 max-w-[260px] mb-6">{error}</Text>
             <TouchableOpacity
-              key={module.label}
-              className="w-[47%] bg-white rounded-2xl p-4 border border-slate-100"
+              className="flex-row items-center bg-primary-600 px-6 py-3 rounded-xl"
               activeOpacity={0.7}
-              style={{
-                shadowColor: "#1E293B",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.06,
-                shadowRadius: 8,
-                elevation: 2,
-              }}
-              onPress={() => {
-                if (module.route) {
-                  console.log(`[Dashboard] Quick action: ${module.route}`);
-                  router.push(`/(tabs)/(home)/${module.route}` as any);
-                }
-              }}
+              onPress={onRefresh}
             >
-              <View
-                className="w-11 h-11 rounded-xl items-center justify-center mb-3"
-                style={{ backgroundColor: module.color + "15" }}
-              >
-                <Ionicons name={module.icon as any} size={22} color={module.color} />
-              </View>
-              <Text className="text-slate-800 font-semibold text-sm">
-                {module.label}
+              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+              <Text className="text-white font-semibold text-sm ml-2">Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : !hasStudents ? (
+          <View className="items-center justify-center pt-20 pb-8">
+            <View className="w-24 h-24 bg-primary-50 rounded-full items-center justify-center mb-6">
+              <Ionicons name="people-outline" size={48} color="#3B82F6" />
+            </View>
+            <Text className="text-slate-800 text-lg font-bold text-center mb-2">No Students Linked</Text>
+            <Text className="text-slate-400 text-sm text-center leading-5 max-w-[260px] mb-6">
+              Your account doesn't have any students linked yet. Please contact the school administrator.
+            </Text>
+            <TouchableOpacity
+              className="flex-row items-center bg-primary-600 px-6 py-3 rounded-xl"
+              activeOpacity={0.7}
+              onPress={onRefresh}
+            >
+              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
+              <Text className="text-white font-semibold text-sm ml-2">Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* ── Section: Overview ── */}
+            <View className="pt-5 pb-1">
+              <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                Overview
               </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Recent Notifications */}
-        <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-            Recent Notifications
-          </Text>
-          <TouchableOpacity
-            onPress={() => {
-              console.log("[Dashboard] Navigating to notifications");
-              router.push("/(tabs)/(home)/notifications" as any);
-            }}
-          >
-            <Text className="text-primary-600 text-xs font-semibold">See All</Text>
-          </TouchableOpacity>
-        </View>
-        <Card padding="none" className="overflow-hidden mb-6">
-          {RECENT_NOTIFICATIONS.map((item, index) => (
-            <TouchableOpacity
-              key={item.id}
-              className={`flex-row items-center px-4 py-3.5 ${
-                index < RECENT_NOTIFICATIONS.length - 1 ? "border-b border-slate-50" : ""
-              }`}
-              activeOpacity={0.7}
-            >
-              <View className="relative">
-                <View className={[
-                  "w-10 h-10 rounded-xl items-center justify-center",
-                  item.type === "fees" ? "bg-amber-50" : "",
-                  item.type === "attendance" ? "bg-blue-50" : "",
-                  item.type === "result" ? "bg-purple-50" : "",
-                ].join(" ")}>
-                  <Ionicons
-                    name={
-                      item.type === "fees" ? "wallet-outline" :
-                      item.type === "attendance" ? "calendar-outline" :
-                      "school-outline"
-                    }
-                    size={18}
-                    color={
-                      item.type === "fees" ? "#F59E0B" :
-                      item.type === "attendance" ? "#3B82F6" :
-                      "#8B5CF6"
-                    }
-                  />
-                </View>
-                {!item.is_read && (
-                  <View className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-primary-500 rounded-full border-2 border-white" />
-                )}
-              </View>
-              <View className="flex-1 ml-3">
-                <Text className="text-slate-800 text-sm font-semibold">
-                  {item.title}
-                </Text>
-                <Text className="text-slate-400 text-xs mt-0.5" numberOfLines={1}>
-                  {item.body}
-                </Text>
-              </View>
-              <Text className="text-slate-400 text-[11px] ml-2">{item.time}</Text>
-            </TouchableOpacity>
-          ))}
-        </Card>
-
-        {/* Upcoming Exams */}
-        <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-            Upcoming Exams
-          </Text>
-          <TouchableOpacity
-            onPress={() => {
-              console.log("[Dashboard] Navigating to results");
-              router.push("/(tabs)/(home)/results" as any);
-            }}
-          >
-            <Text className="text-primary-600 text-xs font-semibold">View All</Text>
-          </TouchableOpacity>
-        </View>
-        <Card padding="none" className="overflow-hidden mb-8">
-          {UPCOMING_EXAMS.map((exam, index) => (
-            <View
-              key={exam.subject}
-              className={`flex-row items-center px-4 py-3.5 ${
-                index < UPCOMING_EXAMS.length - 1 ? "border-b border-slate-50" : ""
-              }`}
-            >
-              <View className="w-10 h-10 bg-primary-50 rounded-xl items-center justify-center">
-                <Ionicons name="school-outline" size={20} color="#3B82F6" />
-              </View>
-              <View className="flex-1 ml-3">
-                <Text className="text-slate-800 text-sm font-semibold">
-                  {exam.subject}
-                </Text>
-                <Text className="text-slate-400 text-xs mt-0.5">{exam.time}</Text>
-              </View>
-              <Badge label={exam.date} variant="info" />
             </View>
-          ))}
-        </Card>
+
+            {/* Metric Cards — value FIRST (dominates), label below, overflow-safe */}
+            <View className="flex-row gap-2.5 mt-3 mb-6">
+              <Card padding="md" className="flex-1">
+                <View className="items-center">
+                  <Text
+                    className="text-slate-900 text-2xl font-bold"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={{ lineHeight: 30 }}
+                  >
+                    {attSummary ? `${Math.round(attSummary.percentage)}%` : "—"}
+                  </Text>
+                  <View className="flex-row items-center gap-1 mt-1.5">
+                    <View className="w-5 h-5 bg-green-50 rounded-md items-center justify-center">
+                      <Ionicons name="checkmark-circle" size={12} color="#16A34A" />
+                    </View>
+                    <Text
+                      className="text-slate-500 text-[11px] font-medium"
+                      numberOfLines={1}
+                    >
+                      Attendance
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+              <Card padding="md" className="flex-1">
+                <View className="items-center">
+                  <Text
+                    className="text-slate-900 text-2xl font-bold"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={{ lineHeight: 30 }}
+                  >
+                    {feesSummary ? formatCompactCurrency(feesSummary.pending) : "—"}
+                  </Text>
+                  <View className="flex-row items-center gap-1 mt-1.5">
+                    <View className="w-5 h-5 bg-amber-50 rounded-md items-center justify-center">
+                      <Ionicons name="wallet-outline" size={12} color="#F59E0B" />
+                    </View>
+                    <Text
+                      className="text-slate-500 text-[11px] font-medium"
+                      numberOfLines={1}
+                    >
+                      Due Fees
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+              <Card padding="md" className="flex-1">
+                <View className="items-center">
+                  <Text
+                    className="text-slate-900 text-2xl font-bold"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={{ lineHeight: 30 }}
+                  >
+                    {examsSummary ? `${examsSummary.subjects}` : "—"}
+                  </Text>
+                  <View className="flex-row items-center gap-1 mt-1.5">
+                    <View className="w-5 h-5 bg-purple-50 rounded-md items-center justify-center">
+                      <Ionicons name="book-outline" size={12} color="#8B5CF6" />
+                    </View>
+                    <Text
+                      className="text-slate-500 text-[11px] font-medium"
+                      numberOfLines={1}
+                    >
+                      Subjects
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+            </View>
+
+            {/* ── Section: Quick Actions ── */}
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                Quick Actions
+              </Text>
+            </View>
+            <View className="flex-row flex-wrap gap-2.5 mb-6">
+              {MODULES.map((module) => (
+                <TouchableOpacity
+                  key={module.label}
+                  className="w-[48%] bg-white rounded-2xl px-3.5 py-3 border border-slate-100 flex-row items-center gap-2.5"
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (module.route) {
+                      router.push(`/${module.route}` as any);
+                    }
+                  }}
+                >
+                  <View
+                    className="w-9 h-9 rounded-xl items-center justify-center shrink-0"
+                    style={{ backgroundColor: module.color + "12" }}
+                  >
+                    <Ionicons name={module.icon} size={18} color={module.color} />
+                  </View>
+                  <Text className="text-slate-800 font-semibold text-sm" numberOfLines={1}>
+                    {module.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* ── Section: Recent Notifications ── */}
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                Recent Notifications
+              </Text>
+              <TouchableOpacity onPress={() => router.push("/notifications" as any)}>
+                <Text className="text-primary-600 text-xs font-semibold">See All</Text>
+              </TouchableOpacity>
+            </View>
+            <Card padding="none" className="overflow-hidden mb-6">
+              {notifs.length === 0 ? (
+                <View className="px-4 py-6 items-center">
+                  <Ionicons name="notifications-off-outline" size={24} color="#CBD5E1" />
+                  <Text className="text-slate-400 text-sm mt-2">No notifications</Text>
+                </View>
+              ) : (
+                notifs.slice(0, 3).map((item, index) => {
+                  const config = NOTIF_TYPE_CONFIG[item.type] ?? NOTIF_TYPE_CONFIG.general;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      className={`flex-row items-center px-4 py-3.5 ${index < Math.min(notifs.length, 3) - 1 ? "border-b border-slate-50" : ""}`}
+                      activeOpacity={0.7}
+                      onPress={() => handleOpenNotification(item)}
+                    >
+                      <View className="relative">
+                        <View className={`w-9 h-9 ${config.bg} rounded-xl items-center justify-center`}>
+                          <Ionicons name={config.icon as any} size={18} color={config.color} />
+                        </View>
+                        {!item.is_read && (
+                          <View className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary-500 rounded-full border-2 border-white" />
+                        )}
+                      </View>
+                      <View className="flex-1 ml-3">
+                        <Text className="text-slate-800 text-sm font-semibold" numberOfLines={1}>{item.title}</Text>
+                        <Text className="text-slate-400 text-xs mt-0.5" numberOfLines={1}>{item.body}</Text>
+                      </View>
+                      <Text className="text-slate-400 text-[11px] ml-2 shrink-0">{formatRelativeTime(item.created_at)}</Text>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </Card>
+
+            {/* ── Section: Academic Performance ── */}
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                Academic Performance
+              </Text>
+              <TouchableOpacity onPress={() => router.push("/results" as any)}>
+                <Text className="text-primary-600 text-xs font-semibold">View All</Text>
+              </TouchableOpacity>
+            </View>
+            <Card padding="lg" className="mb-8">
+              {examsSummary ? (
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-1 mr-4">
+                    <Text className="text-slate-500 text-xs font-medium uppercase tracking-wider">Average Score</Text>
+                    <Text className="text-slate-900 text-3xl font-bold mt-1" numberOfLines={1}>
+                      {examsSummary.average}%
+                    </Text>
+                    <Text className="text-slate-400 text-xs mt-1" numberOfLines={1}>
+                      {examsSummary.subjects} subjects • {examsSummary.obtained_marks}/{examsSummary.total_marks} marks
+                    </Text>
+                  </View>
+                  <View className="w-14 h-14 bg-primary-50 rounded-2xl items-center justify-center shrink-0">
+                    <Text className="text-primary-600 text-xl font-bold">
+                      {examsSummary.average >= 90 ? "A+" : examsSummary.average >= 80 ? "A" : examsSummary.average >= 70 ? "B+" : examsSummary.average >= 60 ? "B" : "C"}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View className="items-center py-2">
+                  <Ionicons name="hourglass-outline" size={24} color="#CBD5E1" />
+                  <Text className="text-slate-400 text-sm mt-2">No performance data yet</Text>
+                </View>
+              )}
+            </Card>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

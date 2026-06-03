@@ -8,6 +8,7 @@ export default function HomeStackLayout() {
       <Stack.Screen name="fees" />
       <Stack.Screen name="attendance" />
       <Stack.Screen name="notifications" />
+      <Stack.Screen name="notifications/[id]" />
       <Stack.Screen name="timetable" />
       <Stack.Screen name="results" />
     </Stack>

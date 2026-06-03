@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { User, Student, LoginPayload, LoginResponse, AuthState } from "@/types";
-import { STORAGE_KEYS } from "@/constants/config";
 
 interface AuthActions {
   login: (payload: LoginPayload) => Promise<void>;
@@ -12,6 +11,8 @@ interface AuthActions {
   setStudents: (students: Student[]) => void;
   setLoading: (loading: boolean) => void;
   hydrateFromApi: (data: LoginResponse) => void;
+  setParentUuid: (uuid: string | null) => void;
+  setSelectedStudentUuid: (uuid: string | null) => void;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -19,17 +20,16 @@ type AuthStore = AuthState & AuthActions;
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
-      // State
       user: null,
       students: [],
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      parentUuid: null,
+      selectedStudentUuid: null,
 
-      // Actions
-      login: async (payload: LoginPayload) => {
+      login: async (_payload: LoginPayload) => {
         set({ isLoading: true });
-        // Login is handled by the caller via the API
         set({ isLoading: false });
       },
 
@@ -39,6 +39,8 @@ export const useAuthStore = create<AuthStore>()(
           students: [],
           token: null,
           isAuthenticated: false,
+          parentUuid: null,
+          selectedStudentUuid: null,
         });
       },
 
@@ -58,16 +60,24 @@ export const useAuthStore = create<AuthStore>()(
           token: data.token,
           isAuthenticated: true,
           isLoading: false,
+          parentUuid: data.parent_uuid ?? null,
+          selectedStudentUuid: data.students?.[0]?.uuid ?? null,
         }),
+
+      setParentUuid: (uuid: string | null) => set({ parentUuid: uuid }),
+
+      setSelectedStudentUuid: (uuid: string | null) => set({ selectedStudentUuid: uuid }),
     }),
     {
-      name: STORAGE_KEYS.AUTH_TOKEN,
+      name: "school_parent_auth_store",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         user: state.user,
         students: state.students,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
+        parentUuid: state.parentUuid,
+        selectedStudentUuid: state.selectedStudentUuid,
       }),
     },
   ),

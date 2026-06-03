@@ -18,7 +18,7 @@ export function EmptyState({
   onAction,
 }: EmptyStateProps) {
   return (
-    <View className="items-center justify-center py-12 px-8">
+    <View className="items-center justify-center py-16 px-8">
       <View className="w-16 h-16 bg-slate-100 rounded-full items-center justify-center mb-4">
         <Ionicons name={icon} size={28} color="#94A3B8" />
       </View>
@@ -31,7 +31,7 @@ export function EmptyState({
         </Text>
       )}
       {actionLabel && onAction && (
-        <View className="mt-4">
+        <View className="mt-5">
           <Button
             title={actionLabel}
             onPress={onAction}

@@ -18,8 +18,8 @@ interface InputProps extends TextInputProps {
 }
 
 // Static values outside component — never recomputed
-const BASE_CONTAINER_CLASS = "flex-row items-center rounded-2xl border-2 px-4 bg-slate-50";
-const INPUT_CLASS = "flex-1 py-4 text-base text-slate-800";
+const BASE_CONTAINER_CLASS = "flex-row items-center rounded-xl border px-4";
+const INPUT_CLASS = "flex-1 py-3.5 text-base text-slate-900";
 
 export const Input = memo(function Input({
   label,
@@ -70,7 +70,7 @@ export const Input = memo(function Input({
   return (
     <View style={containerStyle}>
       {label && (
-        <Text className="text-sm font-semibold text-slate-700 mb-2 ml-1">
+        <Text className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 ml-1">
           {label}
         </Text>
       )}

@@ -21,10 +21,11 @@ export const colors = {
     background: "#F8FAFC",
     card: "#FFFFFF",
     border: "#E2E8F0",
+    elevated: "#FFFFFF",
   },
   text: {
-    primary: "#1E293B",
-    secondary: "#64748B",
+    primary: "#0F172A",
+    secondary: "#475569",
     muted: "#94A3B8",
     inverse: "#FFFFFF",
   },
