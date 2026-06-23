@@ -89,16 +89,22 @@ export interface StudentFee {
 
 export interface ExamResultRecord {
   id: number;
-  student_id: number;
-  marks_obtained: number;
+  exam_id: number;
+  exam_name: string;
+  exam_type?: string;
+  exam_date?: string;
+  subject_name: string | null;
+  subject: string | null;
   maximum_marks: number;
+  pass_marks?: number;
+  student_id: number;
+  student_name?: string;
+  admission_no?: string;
+  marks_obtained: number;
   grade: string | null;
   remarks: string | null;
-  exam: {
-    id: number;
-    name: string;
-    subject: { id: number; name: string };
-  };
+  status?: string;
+  percentage?: number;
 }
 
 export interface TimetableSlot {
@@ -143,4 +149,93 @@ export interface DashboardData {
     obtained_marks: number;
   };
   notifications: NotificationItem[];
+  leave_summary?: {
+    pending: number;
+    approved: number;
+    rejected: number;
+    total: number;
+  };
+}
+
+export interface HomeworkItem {
+  id: number;
+  subject_name: string | null;
+  title: string;
+  description: string;
+  assigned_date: string;
+  due_date: string;
+  attachment_url: string | null;
+  status: string;
+}
+
+export interface CalendarEvent {
+  id: number;
+  title: string;
+  description: string | null;
+  event_type: string;
+  start_date: string;
+  end_date: string | null;
+  is_published: boolean;
+  location: string | null;
+  audience: string | null;
+}
+
+export interface StudentDocument {
+  id: number;
+  title: string;
+  document_type: string;
+  document_type_label: string;
+  file_name: string;
+  file_size: number;
+  file_size_formatted: string;
+  mime_type: string;
+  is_verified: boolean;
+  verification_status_label: string;
+  issue_date: string | null;
+  expiry_date: string | null;
+  remarks: string | null;
+  download_url: string | null;
+  created_at: string;
+}
+
+export interface LeaveRequest {
+  id: number;
+  student_id: number;
+  student_name: string | null;
+  leave_type_id: number;
+  leave_type: string | null;
+  from_date: string;
+  to_date: string;
+  days: number;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  status_label: string;
+  attachment_url: string | null;
+  remarks: string | null;
+  created_at: string;
+  approved_by?: string | null;
+  approved_at?: string | null;
+}
+
+export interface LeaveRequestPayload {
+  leave_type_id?: number;
+  leave_type?: string;
+  from_date: string;
+  to_date: string;
+  reason: string;
+}
+
+export interface CircularItem {
+  id: number;
+  title: string;
+  body: string;
+  message: string;
+  type: string;
+  type_label: string;
+  priority: string;
+  sent_at: string;
+  created_at: string;
+  is_read: boolean;
+  read_at: string | null;
+  created_by: { id: number; name: string } | null;
 }

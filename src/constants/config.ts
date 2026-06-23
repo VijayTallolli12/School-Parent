@@ -18,4 +18,7 @@ export const QUERY_KEYS = {
   TIMETABLE: "timetable",
   RESULTS: "results",
   LEAVE_REQUESTS: "leave-requests",
+  CALENDAR: "calendar",
+  DOCUMENTS: "documents",
+  CIRCULARS: "circulars",
 } as const;

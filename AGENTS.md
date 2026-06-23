@@ -28,6 +28,17 @@ Login/me returns wrapped in `{ success, message, data: { token, user, students, 
 - `GET /parents/{uuid}/children/{childUuid}/fees` — StudentFee collection with items
 - `GET /parents/{uuid}/children/{childUuid}/exams` — Exam results grouped by academic year
 - `GET /parents/{uuid}/children/{childUuid}/timetable` — Weekly timetable grouped by day_of_week
+- `GET /parents/{uuid}/children/{childUuid}/homework` — Homework assignments with attachments
+- `GET /parents/{uuid}/children/{childUuid}/calendar?month=&year=&type=` — Academic calendar events (holidays, exams, PTMs, sports, annual day)
+- `GET /parents/{uuid}/children/{childUuid}/documents` — Student uploaded documents with verification status
+- `GET /parents/{uuid}/circulars?page=` — Paginated circulars/announcements
+- `GET /parents/{uuid}/circulars/{id}` — Circular detail
+- `POST /parents/{uuid}/circulars/{id}/read` — Mark circular as read
+- `GET /parents/{uuid}/children/{childUuid}/leave-requests` — Leave request list for a child
+- `POST /parents/{uuid}/children/{childUuid}/leave-requests` — Submit new leave request
+- `GET /parents/{uuid}/children/{childUuid}/leave-requests/{id}` — Leave request detail
+- `PUT /parents/{uuid}` — Update parent profile (fields: phone, email, address, profile_photo)
+- `PUT /parents/{uuid}/change-password` — Change password (fields: current_password, new_password, confirm_password)
 
 ## Frontend (Expo React Native)
 
@@ -40,11 +51,11 @@ Login/me returns wrapped in `{ success, message, data: { token, user, students, 
 - Axios client with token resolution (checks raw `auth_token` key + Zustand persist store)
 - 401 response interceptor clears auth data
 - All API functions unwrap `{ success, data }` wrapper automatically
-- Functions: `fetchDashboard`, `fetchParent`, `fetchAttendance`, `fetchFees`, `fetchExamResults`, `fetchTimetable`, `fetchChildren`, `fetchMe`, `fetchNotifications`, `fetchUnreadCount`, `markNotificationRead`, `markAllNotificationsRead`
+- Functions: `fetchDashboard`, `fetchParent`, `fetchAttendance`, `fetchFees`, `fetchExamResults`, `fetchTimetable`, `fetchChildren`, `fetchMe`, `fetchNotifications`, `fetchUnreadCount`, `markNotificationRead`, `markAllNotificationsRead`, `fetchHomework`, `fetchCalendar`, `fetchDocuments`, `fetchCirculars`, `fetchCircularDetail`, `markCircularRead`, `fetchLeaveRequests`, `fetchLeaveRequestDetail`, `submitLeaveRequest`, `updateProfile`, `changePassword`
 
 ### Types (`src/types/index.ts`)
 - `User`, `Student`, `AuthState`, `LoginResponse`, `ApiResponse<T>`
-- Data types: `AttendanceRecord`, `AttendanceData`, `StudentFee`, `FeeItem`, `ExamResultRecord`, `TimetableSlot`, `TimetableData`, `NotificationItem`, `DashboardData`
+- Data types: `AttendanceRecord`, `AttendanceData`, `StudentFee`, `FeeItem`, `ExamResultRecord`, `TimetableSlot`, `TimetableData`, `NotificationItem`, `DashboardData` (includes optional `leave_summary`), `HomeworkItem`, `HomeworkAttachment`, `CalendarEvent`, `StudentDocument`, `CircularItem`, `CircularAttachment`, `LeaveRequest`, `LeaveRequestPayload`
 
 ### Screens Status (all API-integrated)
 
@@ -59,9 +70,17 @@ Login/me returns wrapped in `{ success, message, data: { token, user, students, 
 | Notifications | ✅ Real API | `GET /notifications`, `POST /notifications/{id}/read`, `POST /notifications/read-all` |
 | Student Profile | ✅ Real API | `GET /parents/{uuid}` (for parent details) + auth store |
 | Profile | ✅ Real data | Auth store (`user?.name`, `user?.email`) |
-| Edit Profile | ✅ Real data | Auth store (read-only; no PUT endpoint yet) |
+| Edit Profile | ✅ Real API | `GET /parents/{uuid}` (load) + `PUT /parents/{uuid}` (save) |
 | Privacy | ✅ Static | Static text |
 | Help | ✅ Static | Static text |
+| Homework | ✅ Real API | `GET /parents/{uuid}/children/{childUuid}/homework` |
+| Calendar | ✅ Real API | `GET /parents/{uuid}/children/{childUuid}/calendar` |
+| Documents | ✅ Real API | `GET /parents/{uuid}/children/{childUuid}/documents` |
+| Circulars | ✅ Real API | `GET /parents/{uuid}/circulars`, `GET /parents/{uuid}/circulars/{id}`, `POST /parents/{uuid}/circulars/{id}/read` |
+| Leave List | ✅ Real API | `GET /parents/{uuid}/children/{childUuid}/leave-requests` |
+| Apply Leave | ✅ Real API | `POST /parents/{uuid}/children/{childUuid}/leave-requests` |
+| Leave Detail | ✅ Real API | `GET /parents/{uuid}/children/{childUuid}/leave-requests/{id}` |
+| Change Password | ✅ Real API | `PUT /parents/{uuid}/change-password` |
 
 ### Navigation Structure
 ```
@@ -74,10 +93,20 @@ Login/me returns wrapped in `{ success, message, data: { token, user, students, 
     results            — Exam results grouped
     timetable          — Weekly timetable
     notifications      — Notifications list
+    notifications/[id] — Notification detail
     student-profile    — Student details + parent info
+    homework           — Homework list with attachments
+    calendar           — Academic calendar with month/type filters
+    documents          — Student uploaded documents
+    circulars          — Circulars/announcements list
+    circulars/[id]     — Circular detail with attachments
+    leave              — Leave request list for a child
+    leave/apply        — Submit new leave request
+    leave/[id]         — Leave request detail
   profile/
     index              — Profile main
-    edit-profile       — Read-only user info
+    edit-profile       — Editable profile (phone, email, address)
+    change-password    — Change password
     privacy            — Privacy policy
     help               — Help & support
 ```
@@ -96,3 +125,18 @@ Login/me returns wrapped in `{ success, message, data: { token, user, students, 
 - Frontend `Student.avatar_url` maps from backend `photo` field in login.tsx
 - All screens handle missing `parentUuid` or `childUuid` gracefully (skip loading)
 - Timetable day_of_week: 1=Monday through 7=Sunday (backend numeric, frontend maps via DAY_NAMES)
+
+## Session 2026-06-15 — DataTables Binding Audit & Backend Fixes
+
+### Backend Fixes Applied
+1. **Notification model N+1 fix**: `getUnreadCountAttribute()` now checks `$this->attributes['unread_count']` first (from `withCount`), avoiding redundant per-row query
+2. **`NotificationController::show()`**: Added `loadCount` for unread_count
+3. **`StudentReportController::directory()`**: Added per-student-ID caching for `formatDirectoryRow()` (was called 8× per row); added `e()` escaping for XSS
+4. **Fees blade**: Wrapped all 5 DataTable creations in `try-catch` via `createFeeTable()` factory; added `error` + `initComplete` AJAX callbacks with console.log; null-guarded all `tables.xxx?.ajax.reload()` calls
+5. **View cache cleared**: Fixed `parents.activity_summary` not-found error
+6. **Vite production build**: Rebuilt after all changes
+
+### Troubleshooting
+- If fees tables still show "No data" after deploy → open browser console → look for `[Fee DT]` prefix logs
+- If `recordsTotal` > 0 but no rows render → likely Bootstrap tab `display:none` + DataTables `responsive: true` interaction
+- Workaround for hidden tab DataTables: call `table.columns.adjust().responsive.recalc()` on tab `shown.bs.tab` event

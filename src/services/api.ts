@@ -2,7 +2,7 @@ import axios from "axios";
 import { API_BASE_URL } from "@/config/api";
 import { storage } from "@/utils/storage";
 import { STORAGE_KEYS } from "@/constants/config";
-import type { AttendanceData, DashboardData, NotificationItem, StudentFee, ExamResultRecord, TimetableData } from "@/types";
+import type { AttendanceData, DashboardData, NotificationItem, StudentFee, ExamResultRecord, TimetableData, HomeworkItem, CalendarEvent, StudentDocument, CircularItem, LeaveRequest, LeaveRequestPayload } from "@/types";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -196,6 +196,114 @@ export async function markNotificationRead(id: number): Promise<void> {
 
 export async function markAllNotificationsRead(): Promise<void> {
   await apiClient.post("/notifications/read-all");
+}
+
+// ─── Homework ───────────────────────────────────────────────────────
+
+export async function fetchHomework(parentUuid: string, childUuid: string): Promise<HomeworkItem[]> {
+  const res = await apiClient.get(`/parents/${parentUuid}/children/${childUuid}/homework`);
+  const data = unwrap<{ homework: HomeworkItem[] }>(res);
+  return data.homework;
+}
+
+// ─── Academic Calendar ──────────────────────────────────────────────
+
+export async function fetchCalendar(
+  parentUuid: string,
+  childUuid: string,
+  month?: number,
+  year?: number,
+  eventType?: string,
+): Promise<CalendarEvent[]> {
+  const params: Record<string, string | number> = {};
+  if (month) params.month = month;
+  if (year) params.year = year;
+  if (eventType) params.type = eventType;
+  const res = await apiClient.get(`/parents/${parentUuid}/children/${childUuid}/calendar`, { params });
+  const data = unwrap<{ events: CalendarEvent[] }>(res);
+  return data.events;
+}
+
+// ─── Student Documents ──────────────────────────────────────────────
+
+export async function fetchDocuments(parentUuid: string, childUuid: string): Promise<StudentDocument[]> {
+  const res = await apiClient.get(`/parents/${parentUuid}/children/${childUuid}/documents`);
+  const data = unwrap<{ documents: StudentDocument[] }>(res);
+  return data.documents;
+}
+
+// ─── Circulars / Announcements ────────────────────────────────────
+
+export async function fetchCirculars(parentUuid: string, page = 1): Promise<{
+  data: CircularItem[];
+  meta: { current_page: number; last_page: number; total: number };
+}> {
+  const res = await apiClient.get(`/parents/${parentUuid}/circulars`, { params: { page } });
+  const body = res.data;
+  return {
+    data: (body.data ?? []) as CircularItem[],
+    meta: body.meta as { current_page: number; last_page: number; total: number },
+  };
+}
+
+export async function fetchCircularDetail(parentUuid: string, id: number): Promise<CircularItem> {
+  const res = await apiClient.get(`/parents/${parentUuid}/circulars/${id}`);
+  return unwrap<CircularItem>(res);
+}
+
+export async function markCircularRead(parentUuid: string, id: number): Promise<void> {
+  await apiClient.post(`/parents/${parentUuid}/circulars/${id}/read`);
+}
+
+// ─── Leave Requests ─────────────────────────────────────────────────
+
+export async function fetchLeaveRequests(parentUuid: string, childUuid: string): Promise<LeaveRequest[]> {
+  const res = await apiClient.get(`/parents/${parentUuid}/children/${childUuid}/leave-requests`);
+  const data = unwrap<{ leave_requests: LeaveRequest[] }>(res);
+  return data.leave_requests;
+}
+
+export async function fetchLeaveRequestDetail(parentUuid: string, childUuid: string, id: number): Promise<LeaveRequest> {
+  const res = await apiClient.get(`/parents/${parentUuid}/children/${childUuid}/leave-requests/${id}`);
+  const data = unwrap<{ leave_request: LeaveRequest }>(res);
+  return data.leave_request;
+}
+
+export async function submitLeaveRequest(parentUuid: string, childUuid: string, payload: LeaveRequestPayload): Promise<LeaveRequest> {
+  const res = await apiClient.post(`/parents/${parentUuid}/children/${childUuid}/leave-requests`, payload);
+  const data = unwrap<{ leave_request: LeaveRequest }>(res);
+  return data.leave_request;
+}
+
+export async function updateLeaveRequest(parentUuid: string, childUuid: string, id: number, payload: Partial<LeaveRequestPayload>): Promise<LeaveRequest> {
+  const res = await apiClient.put(`/parents/${parentUuid}/children/${childUuid}/leave-requests/${id}`, payload);
+  const data = unwrap<{ leave_request: LeaveRequest }>(res);
+  return data.leave_request;
+}
+
+// ─── Profile ────────────────────────────────────────────────────────
+
+export interface ProfileUpdatePayload {
+  phone?: string;
+  email?: string;
+  address?: string;
+  profile_photo?: string;
+}
+
+export async function updateProfile(parentUuid: string, payload: ProfileUpdatePayload): Promise<Record<string, unknown>> {
+  const res = await apiClient.put(`/parents/${parentUuid}`, payload);
+  return unwrap(res);
+}
+
+export interface ChangePasswordPayload {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
+}
+
+export async function changePassword(parentUuid: string, payload: ChangePasswordPayload): Promise<Record<string, unknown>> {
+  const res = await apiClient.put(`/parents/${parentUuid}/change-password`, payload);
+  return res.data;
 }
 
 export default apiClient;

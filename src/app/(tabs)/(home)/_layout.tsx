@@ -11,6 +11,14 @@ export default function HomeStackLayout() {
       <Stack.Screen name="notifications/[id]" />
       <Stack.Screen name="timetable" />
       <Stack.Screen name="results" />
+      <Stack.Screen name="homework" />
+      <Stack.Screen name="calendar" />
+      <Stack.Screen name="documents" />
+      <Stack.Screen name="circulars" />
+      <Stack.Screen name="circulars/[id]" />
+      <Stack.Screen name="leave" />
+      <Stack.Screen name="leave/apply" />
+      <Stack.Screen name="leave/[id]" />
     </Stack>
   );
 }

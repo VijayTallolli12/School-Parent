@@ -77,7 +77,7 @@ export default function ResultsScreen() {
 
   const uniqueExams = new Map<string, { label: string; results: ExamResultRecord[] }>();
   results.forEach((r) => {
-    const name = r.exam?.name ?? "Unknown";
+    const name = r.exam_name || "Unknown Exam";
     if (!uniqueExams.has(name)) uniqueExams.set(name, { label: name, results: [] });
     uniqueExams.get(name)!.results.push(r);
   });
@@ -175,6 +175,10 @@ export default function ResultsScreen() {
                       {examGroup.results.map((result, index) => {
                         const pct = result.maximum_marks > 0 ? Math.round((result.marks_obtained / result.maximum_marks) * 100) : 0;
                         const barColor = pct >= 80 ? "#16A34A" : pct >= 60 ? "#F59E0B" : "#DC2626";
+                        const passed =
+                          result.pass_marks != null
+                            ? result.marks_obtained >= result.pass_marks
+                            : pct >= 40;
                         return (
                           <View
                             key={result.id}
@@ -182,15 +186,21 @@ export default function ResultsScreen() {
                           >
                             <View className="flex-row items-center justify-between mb-2">
                               <Text className="text-slate-800 text-sm font-semibold flex-1">
-                                {result.exam?.subject?.name ?? "Subject"}
+                                {result.subject_name ?? result.subject ?? "Unknown Subject"}
                               </Text>
-                              <Text className="text-slate-600 text-sm font-bold mr-2">
-                                {result.marks_obtained}/{result.maximum_marks}
-                              </Text>
-                              <Badge
-                                label={result.grade ?? getGradeFromPercentage(pct).grade}
-                                variant={pct >= 80 ? "success" : pct >= 60 ? "warning" : "error"}
-                              />
+                              <View className="flex-row items-center gap-2">
+                                <Text className="text-slate-600 text-sm font-bold">
+                                  {result.marks_obtained}/{result.maximum_marks}
+                                </Text>
+                                <Badge
+                                  label={passed ? "Pass" : "Fail"}
+                                  variant={passed ? "success" : "error"}
+                                />
+                                <Badge
+                                  label={result.grade ?? getGradeFromPercentage(pct).grade}
+                                  variant={pct >= 80 ? "success" : pct >= 60 ? "warning" : "error"}
+                                />
+                              </View>
                             </View>
                             <View className="bg-slate-100 rounded-full h-1.5 overflow-hidden">
                               <View className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: barColor }} />

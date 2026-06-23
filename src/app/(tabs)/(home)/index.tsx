@@ -20,13 +20,19 @@ import type { DashboardData, NotificationItem } from "@/types";
 const MODULES = [
   { icon: "calendar-outline" as const, label: "Attendance", color: "#3B82F6", route: "attendance" },
   { icon: "cash-outline" as const, label: "Fees", color: "#10B981", route: "fees" },
-  { icon: "notifications-outline" as const, label: "Notices", color: "#EF4444", route: "notifications" },
+  { icon: "megaphone-outline" as const, label: "Circulars", color: "#EF4444", route: "circulars" },
   { icon: "time-outline" as const, label: "Timetable", color: "#8B5CF6", route: "timetable" },
   { icon: "trophy-outline" as const, label: "Results", color: "#EC4899", route: "results" },
-  { icon: "book-outline" as const, label: "Homework", color: "#F59E0B", route: null },
-  { icon: "document-text-outline" as const, label: "Leave", color: "#06B6D4", route: null },
-  { icon: "settings-outline" as const, label: "Settings", color: "#6B7280", route: null },
+  { icon: "book-outline" as const, label: "Homework", color: "#F59E0B", route: "homework" },
+  { icon: "calendar-outline" as const, label: "Calendar", color: "#06B6D4", route: "calendar" },
+  { icon: "folder-open-outline" as const, label: "Documents", color: "#6B7280", route: "documents" },
+  { icon: "document-text-outline" as const, label: "Leave", color: "#06B6D4", route: "leave" },
 ];
+
+const LEAVE_COLORS = {
+  pending: { bg: "bg-amber-500" },
+  approved: { bg: "bg-green-500" },
+};
 
 const NOTIF_TYPE_CONFIG: Record<string, { icon: string; bg: string; color: string }> = {
   fees: { icon: "wallet-outline", bg: "bg-amber-50", color: "#F59E0B" },
@@ -103,6 +109,7 @@ export default function DashboardScreen() {
   const feesSummary = data?.fees_summary;
   const notifs = data?.notifications ?? [];
   const examsSummary = data?.exam_results_summary;
+  const leaveSummary = data?.leave_summary;
 
   const handleOpenNotification = useCallback((item: NotificationItem) => {
     if (!item || !item.id) return;
@@ -286,28 +293,45 @@ export default function DashboardScreen() {
               </Text>
             </View>
             <View className="flex-row flex-wrap gap-2.5 mb-6">
-              {MODULES.map((module) => (
-                <TouchableOpacity
-                  key={module.label}
-                  className="w-[48%] bg-white rounded-2xl px-3.5 py-3 border border-slate-100 flex-row items-center gap-2.5"
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (module.route) {
-                      router.push(`/${module.route}` as any);
-                    }
-                  }}
-                >
-                  <View
-                    className="w-9 h-9 rounded-xl items-center justify-center shrink-0"
-                    style={{ backgroundColor: module.color + "12" }}
+              {MODULES.map((module) => {
+                const isLeave = module.label === "Leave";
+                return (
+                  <TouchableOpacity
+                    key={module.label}
+                    className="w-[48%] bg-white rounded-2xl px-3.5 py-3 border border-slate-100 flex-row items-center gap-2.5"
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (module.route) {
+                        router.push(`/${module.route}` as any);
+                      }
+                    }}
                   >
-                    <Ionicons name={module.icon} size={18} color={module.color} />
-                  </View>
-                  <Text className="text-slate-800 font-semibold text-sm" numberOfLines={1}>
-                    {module.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <View
+                      className="w-9 h-9 rounded-xl items-center justify-center shrink-0"
+                      style={{ backgroundColor: module.color + "12" }}
+                    >
+                      <Ionicons name={module.icon} size={18} color={module.color} />
+                    </View>
+                    <View className="flex-1 min-w-0">
+                      <Text className="text-slate-800 font-semibold text-sm" numberOfLines={1}>
+                        {module.label}
+                      </Text>
+                      {isLeave && leaveSummary && (
+                        <View className="flex-row items-center gap-1.5 mt-1">
+                          <View className="flex-row items-center">
+                            <View className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1" />
+                            <Text className="text-slate-400 text-[10px]">{leaveSummary.pending}</Text>
+                          </View>
+                          <View className="flex-row items-center">
+                            <View className="w-1.5 h-1.5 rounded-full bg-green-500 mr-1" />
+                            <Text className="text-slate-400 text-[10px]">{leaveSummary.approved}</Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* ── Section: Recent Notifications ── */}
