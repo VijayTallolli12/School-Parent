@@ -1,4 +1,5 @@
 import { View, ActivityIndicator, Text } from "react-native";
+import { useBrandingStore } from "@/store/branding.store";
 
 interface LoadingProps {
   message?: string;
@@ -6,11 +7,14 @@ interface LoadingProps {
 }
 
 export function Loading({ message, fullScreen = false }: LoadingProps) {
+  const theme = useBrandingStore((s) => s.theme);
+  const spinnerColor = theme.primary;
+
   if (fullScreen) {
     return (
       <View className="flex-1 items-center justify-center bg-surface-background">
         <View className="items-center">
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color={spinnerColor} />
           {message && (
             <Text className="text-slate-500 text-sm mt-3">{message}</Text>
           )}
@@ -21,7 +25,7 @@ export function Loading({ message, fullScreen = false }: LoadingProps) {
 
   return (
     <View className="items-center justify-center py-16">
-      <ActivityIndicator size="large" color="#3B82F6" />
+      <ActivityIndicator size="large" color={spinnerColor} />
       {message && (
         <Text className="text-slate-500 text-sm mt-3">{message}</Text>
       )}

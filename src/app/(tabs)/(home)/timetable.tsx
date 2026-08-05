@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import { useAuthStore } from "@/store/auth.store";
 import { fetchTimetable } from "@/services/api";
 import type { TimetableSlot, TimetableData } from "@/types";
+import { OfflineState } from "@/components/ui/OfflineState";
 
 const DAY_NAMES = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAY_ABBR = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -303,21 +304,7 @@ export default function TimetableScreen() {
             <Text className="text-slate-400 text-sm mt-3">Loading timetable...</Text>
           </View>
         ) : error ? (
-          <View className="items-center justify-center pt-20 pb-8">
-            <View className="w-14 h-14 bg-red-50 rounded-full items-center justify-center mb-4">
-              <Ionicons name="cloud-offline-outline" size={28} color="#EF4444" />
-            </View>
-            <Text className="text-slate-800 text-base font-semibold mb-2">Connection Error</Text>
-            <Text className="text-slate-400 text-sm text-center leading-5 max-w-[260px] mb-6">{error}</Text>
-            <TouchableOpacity
-              className="flex-row items-center bg-primary-600 px-6 py-3 rounded-xl"
-              activeOpacity={0.7}
-              onPress={onRefresh}
-            >
-              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
-              <Text className="text-white font-semibold text-sm ml-2">Retry</Text>
-            </TouchableOpacity>
-          </View>
+          <OfflineState message={error} onRetry={onRefresh} />
         ) : daySlots.length === 0 ? (
           <View className="items-center justify-center py-20">
             <View className="w-20 h-20 bg-slate-50 rounded-full items-center justify-center mb-5 border border-slate-100">

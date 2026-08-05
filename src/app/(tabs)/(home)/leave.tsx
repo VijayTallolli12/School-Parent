@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { fetchLeaveRequests } from "@/services/api";
 import type { LeaveRequest } from "@/types";
+import { OfflineState } from "@/components/ui/OfflineState";
 
 const STATUS_STYLES: Record<string, { label: string; color: string; bg: string; icon: string }> = {
   pending: { label: "Pending", color: "#F59E0B", bg: "bg-amber-50", icon: "time" },
@@ -106,21 +107,7 @@ export default function LeaveListScreen() {
             <Text className="text-slate-400 text-sm mt-3">Loading leave requests...</Text>
           </View>
         ) : error ? (
-          <View className="items-center justify-center pt-20 pb-8">
-            <View className="w-16 h-16 bg-red-50 rounded-full items-center justify-center mb-4">
-              <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
-            </View>
-            <Text className="text-slate-800 text-base font-semibold mb-2">Connection Error</Text>
-            <Text className="text-slate-400 text-sm text-center mb-6">{error}</Text>
-            <TouchableOpacity
-              className="flex-row items-center bg-primary-600 px-6 py-3 rounded-xl"
-              activeOpacity={0.7}
-              onPress={onRefresh}
-            >
-              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
-              <Text className="text-white font-semibold text-sm ml-2">Retry</Text>
-            </TouchableOpacity>
-          </View>
+          <OfflineState message={error} onRetry={onRefresh} />
         ) : requests.length === 0 ? (
           <EmptyState
             icon="document-text-outline"

@@ -19,6 +19,9 @@ export default function HomeStackLayout() {
       <Stack.Screen name="leave" />
       <Stack.Screen name="leave/apply" />
       <Stack.Screen name="leave/[id]" />
+      <Stack.Screen name="transport" />
+      <Stack.Screen name="transport/driver" />
+      <Stack.Screen name="transport/route" />
     </Stack>
   );
 }

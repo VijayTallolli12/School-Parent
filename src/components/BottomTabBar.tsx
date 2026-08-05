@@ -1,6 +1,7 @@
 import { View, TouchableOpacity, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useBrandingStore } from "@/store/branding.store";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
 const TAB_ICONS: Record<
@@ -13,6 +14,7 @@ const TAB_ICONS: Record<
 
 export function BottomTabBar({ state, navigation, descriptors }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const primaryColor = useBrandingStore((s) => s.theme.primary);
 
   return (
     <View style={{ paddingBottom: Math.max(insets.bottom, 0), backgroundColor: "#FFFFFF" }}>
@@ -61,14 +63,14 @@ export function BottomTabBar({ state, navigation, descriptors }: BottomTabBarPro
                 <Ionicons
                   name={iconName}
                   size={isFocused ? 22 : 21}
-                  color={isFocused ? "#2563EB" : "#94A3B8"}
+                  color={isFocused ? primaryColor : "#94A3B8"}
                 />
               </View>
               <Text
                 style={{
                   fontSize: 10,
                   fontWeight: isFocused ? "600" : "400",
-                  color: isFocused ? "#2563EB" : "#94A3B8",
+                  color: isFocused ? primaryColor : "#94A3B8",
                   marginTop: 2,
                 }}
               >

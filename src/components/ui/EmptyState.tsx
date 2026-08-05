@@ -1,5 +1,6 @@
 import { View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useBrandingStore } from "@/store/branding.store";
 import { Button } from "./Button";
 
 interface EmptyStateProps {
@@ -17,10 +18,15 @@ export function EmptyState({
   actionLabel,
   onAction,
 }: EmptyStateProps) {
+  const theme = useBrandingStore((s) => s.theme);
+
   return (
     <View className="items-center justify-center py-16 px-8">
-      <View className="w-16 h-16 bg-slate-100 rounded-full items-center justify-center mb-4">
-        <Ionicons name={icon} size={28} color="#94A3B8" />
+      <View
+        className="w-16 h-16 rounded-full items-center justify-center mb-4"
+        style={{ backgroundColor: theme.primaryLight }}
+      >
+        <Ionicons name={icon} size={28} color={theme.primary} />
       </View>
       <Text className="text-slate-700 text-base font-semibold text-center">
         {title}

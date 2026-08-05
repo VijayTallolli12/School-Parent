@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { router } from "expo-router";
 import {
   View,
@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +15,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuthStore } from "@/store/auth.store";
+import { useBrandingStore } from "@/store/branding.store";
 import apiClient from "@/services/api";
 import { storage } from "@/utils/storage";
 import { STORAGE_KEYS } from "@/constants/config";
@@ -30,7 +32,13 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const hydrateFromApi = useAuthStore((s) => s.hydrateFromApi);
+  const branding = useBrandingStore((s) => s.branding);
+  const refreshBranding = useBrandingStore((s) => s.refreshBranding);
   const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    refreshBranding();
+  }, [refreshBranding]);
 
   const {
     control,
@@ -98,6 +106,11 @@ export default function LoginScreen() {
     }
   }, [hydrateFromApi]);
 
+  const appName = branding.appName || "School ERP";
+  const schoolName = branding.schoolName || "School ERP";
+  const hasLogo = !!branding.schoolLogo;
+  const primaryColor = branding.primaryColor;
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <KeyboardAvoidingView
@@ -112,14 +125,27 @@ export default function LoginScreen() {
           bounces={false}
         >
           <View className="px-6 pt-12 pb-4">
-            <View className="w-16 h-16 bg-primary-50 rounded-2xl items-center justify-center mb-6">
-              <Ionicons name="school-outline" size={36} color="#2563EB" />
-            </View>
+            {hasLogo ? (
+              <View className="w-16 h-16 rounded-2xl items-center justify-center mb-6 overflow-hidden bg-white border border-slate-100">
+                <Image
+                  source={{ uri: branding.schoolLogo as string }}
+                  className="w-12 h-12"
+                  resizeMode="contain"
+                />
+              </View>
+            ) : (
+              <View
+                className="w-16 h-16 rounded-2xl items-center justify-center mb-6"
+                style={{ backgroundColor: `${primaryColor}14` }}
+              >
+                <Ionicons name="school-outline" size={36} color={primaryColor} />
+              </View>
+            )}
             <Text className="text-slate-900 text-3xl font-bold tracking-tight">
-              Welcome back
+              Welcome to {schoolName}
             </Text>
             <Text className="text-slate-500 text-base mt-1.5">
-              Sign in to your parent account
+              Sign in to your {appName} account
             </Text>
           </View>
 
@@ -180,7 +206,7 @@ export default function LoginScreen() {
             <View className="flex-row items-center">
               <View className="w-8 h-px bg-slate-200" />
               <Text className="text-slate-400 text-xs mx-3 font-medium">
-                School Parent App
+                {appName}
               </Text>
               <View className="w-8 h-px bg-slate-200" />
             </View>

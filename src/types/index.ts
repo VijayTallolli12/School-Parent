@@ -226,16 +226,48 @@ export interface LeaveRequestPayload {
 }
 
 export interface CircularItem {
-  id: number;
-  title: string;
-  body: string;
-  message: string;
-  type: string;
-  type_label: string;
-  priority: string;
-  sent_at: string;
-  created_at: string;
-  is_read: boolean;
-  read_at: string | null;
-  created_by: { id: number; name: string } | null;
+   id: number;
+   title: string;
+   body: string;
+   message: string;
+   type: string;
+   type_label: string;
+   priority: string;
+   sent_at: string;
+   created_at: string;
+   is_read: boolean;
+   read_at: string | null;
+   created_by: { id: number; name: string } | null;
+}
+
+export interface TransportStop {
+   id: number;
+   stop_name: string;
+   pickup_time: string | null;
+   drop_time: string | null;
+   sequence: number;
+   is_student_stop: boolean;
+}
+
+export interface TransportData {
+   vehicle_number: string | null;
+   vehicle_name: string | null;
+   vehicle_type: string | null;
+   driver_name: string | null;
+   driver_mobile: string | null;
+   driver_license: string | null;
+   route_name: string | null;
+   route_start: string | null;
+   route_end: string | null;
+   pickup_stop: string | null;
+   drop_stop: string | null;
+   pickup_time: string | null;
+   drop_time: string | null;
+   status: string;
+   monthly_fee: number | null;
+}
+
+export interface TransportDashboardData {
+   transport: TransportData | null;
+   stops: TransportStop[];
 }

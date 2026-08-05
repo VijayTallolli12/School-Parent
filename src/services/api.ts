@@ -3,7 +3,7 @@ import { API_BASE_URL } from "@/config/api";
 import { storage } from "@/utils/storage";
 import { STORAGE_KEYS } from "@/constants/config";
 import { useAuthStore } from "@/store/auth.store";
-import type { AttendanceData, DashboardData, NotificationItem, StudentFee, ExamResultRecord, TimetableData, HomeworkItem, CalendarEvent, StudentDocument, CircularItem, LeaveRequest, LeaveRequestPayload } from "@/types";
+import type { AttendanceData, DashboardData, NotificationItem, StudentFee, ExamResultRecord, TimetableData, HomeworkItem, CalendarEvent, StudentDocument, CircularItem, LeaveRequest, LeaveRequestPayload, TransportDashboardData, TransportData, TransportStop } from "@/types";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -46,13 +46,48 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+export function isNetworkError(error: unknown): boolean {
+  if (error && typeof error === "object") {
+    const err = error as { response?: unknown; request?: unknown; message?: string };
+    if (err.response) return false;
+    if (err.request) return true;
+    if (err.message === "Network Error") return true;
+  }
+  return false;
+}
+
+export function isTimeoutError(error: unknown): boolean {
+  if (error && typeof error === "object") {
+    const err = error as { message?: string; code?: string };
+    return err.code === "ECONNABORTED" || err.message?.includes("timeout") === true;
+  }
+  return false;
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (isNetworkError(error)) {
+    return "No internet connection. Please check your network settings.";
+  }
+  if (isTimeoutError(error)) {
+    return "Request timed out. Please try again.";
+  }
+  const err = error as { response?: { data?: { message?: string } }; message?: string };
+  return err.response?.data?.message ?? err.message ?? "Something went wrong. Please try again.";
+}
+
 apiClient.interceptors.response.use(
   (response) => {
     console.log("[API] RESPONSE:", response.status, response.config.url);
     return response;
   },
   async (error) => {
-    console.log("[API] ERROR:", error.response?.status, error.response?.config?.url, error.response?.data);
+    if (error.response) {
+      console.log("[API] ERROR:", error.response.status, error.response.config.url, error.response.data);
+    } else if (error.request) {
+      console.log("[API] ERROR: Network Error - no response received:", error.config?.url);
+    } else {
+      console.log("[API] ERROR:", error.message);
+    }
     if (error.response?.status === 401) {
       await clearAuthData();
     }
@@ -308,8 +343,19 @@ export interface ChangePasswordPayload {
 }
 
 export async function changePassword(parentUuid: string, payload: ChangePasswordPayload): Promise<Record<string, unknown>> {
-  const res = await apiClient.put(`/parents/${parentUuid}/change-password`, payload);
-  return unwrap<Record<string, unknown>>(res);
+   const res = await apiClient.put(`/parents/${parentUuid}/change-password`, payload);
+   return unwrap<Record<string, unknown>>(res);
 }
+
+// ─── Transport ──────────────────────────────────────────────
+
+export async function fetchTransportDashboard(parentUuid: string, childUuid: string): Promise<TransportDashboardData> {
+   const res = await apiClient.get(`/parents/${parentUuid}/children/${childUuid}/transport`);
+   const body = unwrap<{ transport: Record<string, unknown> | null; stops: Record<string, unknown>[] }>(res);
+   return {
+     transport: (body.transport ?? null) as unknown as TransportData | null,
+     stops: (body.stops ?? []) as unknown as TransportStop[],
+   };
+ }
 
 export default apiClient;

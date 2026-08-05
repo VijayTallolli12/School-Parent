@@ -6,6 +6,7 @@ import { router } from "expo-router";
 import { useAuthStore } from "@/store/auth.store";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { OfflineState } from "@/components/ui/OfflineState";
 import { fetchAttendance } from "@/services/api";
 import type { AttendanceRecord } from "@/types";
 
@@ -39,10 +40,10 @@ export default function AttendanceScreen() {
       const data = await fetchAttendance(parentUuid, childUuid, selectedMonth, selectedYear);
       setRecords(data.records ?? []);
       setSummary(data.summary);
-    } catch (err: any) {
-      console.error("[Attendance] load error:", err);
-      setError(err?.response?.data?.message ?? "Failed to load attendance");
-    } finally {
+     } catch (err: any) {
+       console.error("[Attendance] load error:", err);
+       setError(err?.message ?? "Failed to load attendance");
+     } finally {
       setLoading(false);
       setRefreshing(false);
     }

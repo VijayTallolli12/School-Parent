@@ -1,18 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useAuthStore } from "@/store/auth.store";
 import { router } from "expo-router";
+import { useAuthStore } from "@/store/auth.store";
+import { useBrandingStore } from "@/store/branding.store";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { OfflineState } from "@/components/ui/OfflineState";
 import { ChildSwitcher } from "@/components/ChildSwitcher";
 import { fetchDashboard } from "@/services/api";
 import type { DashboardData, NotificationItem } from "@/types";
@@ -27,6 +22,7 @@ const MODULES = [
   { icon: "calendar-outline" as const, label: "Calendar", color: "#06B6D4", route: "calendar" },
   { icon: "folder-open-outline" as const, label: "Documents", color: "#6B7280", route: "documents" },
   { icon: "document-text-outline" as const, label: "Leave", color: "#06B6D4", route: "leave" },
+  { icon: "bus-outline" as const, label: "Transport", color: "#14B8A6", route: "transport" },
 ];
 
 const LEAVE_COLORS = {
@@ -76,6 +72,8 @@ export default function DashboardScreen() {
   const selectedStudentUuid = useAuthStore((s) => s.selectedStudentUuid);
   const setSelectedStudentUuid = useAuthStore((s) => s.setSelectedStudentUuid);
   const hasStudents = students.length > 0;
+  const branding = useBrandingStore((s) => s.branding);
+  const refreshBranding = useBrandingStore((s) => s.refreshBranding);
 
   const loadDashboard = useCallback(async () => {
     if (!parentUuid) {
@@ -89,7 +87,7 @@ export default function DashboardScreen() {
       setData(result);
     } catch (err: any) {
       console.error("[Dashboard] load error:", err);
-      setError(err?.response?.data?.message ?? "Failed to load dashboard");
+      setError(err?.message ?? "Failed to load dashboard");
     } finally {
       setLoading(false);
     }
@@ -101,9 +99,9 @@ export default function DashboardScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadDashboard();
+    await Promise.all([loadDashboard(), refreshBranding()]);
     setRefreshing(false);
-  }, [loadDashboard]);
+  }, [loadDashboard, refreshBranding]);
 
   const notificationCount = data?.notifications?.filter((n) => !n.is_read).length ?? 0;
   const attSummary = data?.attendance_summary;
@@ -131,11 +129,29 @@ export default function DashboardScreen() {
     <SafeAreaView className="flex-1 bg-surface-background">
       <View className="bg-white px-5 pt-3 pb-3 border-b border-slate-100">
         <View className="flex-row items-center justify-between">
-          <View className="flex-1">
-            <Text className="text-slate-500 text-xs font-medium">Welcome back</Text>
-            <Text className="text-slate-900 text-lg font-bold mt-0.5">
-              {user?.name ?? "Parent"}
-            </Text>
+          <View className="flex-row items-center flex-1">
+            {branding.schoolLogo ? (
+              <View className="w-9 h-9 rounded-xl items-center justify-center mr-2.5 overflow-hidden bg-white border border-slate-100">
+                <Image
+                  source={{ uri: branding.schoolLogo as string }}
+                  className="w-8 h-8"
+                  resizeMode="contain"
+                />
+              </View>
+            ) : (
+              <View
+                className="w-9 h-9 rounded-xl items-center justify-center mr-2.5"
+                style={{ backgroundColor: `${branding.primaryColor}14` }}
+              >
+                <Ionicons name="school-outline" size={18} color={branding.primaryColor} />
+              </View>
+            )}
+            <View className="flex-1">
+              <Text className="text-slate-500 text-xs font-medium">{branding.schoolName || "School ERP"}</Text>
+              <Text className="text-slate-900 text-lg font-bold mt-0.5">
+                {user?.name ?? "Parent"}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity
             className="w-9 h-9 bg-slate-100 rounded-full items-center justify-center relative"
@@ -172,21 +188,10 @@ export default function DashboardScreen() {
             <Text className="text-slate-400 text-sm mt-3">Loading dashboard...</Text>
           </View>
         ) : error ? (
-          <View className="items-center justify-center pt-20 pb-8">
-            <View className="w-16 h-16 bg-red-50 rounded-full items-center justify-center mb-4">
-              <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
-            </View>
-            <Text className="text-slate-800 text-lg font-bold text-center mb-2">Connection Error</Text>
-            <Text className="text-slate-400 text-sm text-center leading-5 max-w-[260px] mb-6">{error}</Text>
-            <TouchableOpacity
-              className="flex-row items-center bg-primary-600 px-6 py-3 rounded-xl"
-              activeOpacity={0.7}
-              onPress={onRefresh}
-            >
-              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
-              <Text className="text-white font-semibold text-sm ml-2">Retry</Text>
-            </TouchableOpacity>
-          </View>
+          <OfflineState
+            message={error}
+            onRetry={onRefresh}
+          />
         ) : !hasStudents ? (
           <View className="items-center justify-center pt-20 pb-8">
             <View className="w-24 h-24 bg-primary-50 rounded-full items-center justify-center mb-6">

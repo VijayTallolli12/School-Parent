@@ -1,7 +1,8 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Alert, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/auth.store";
+import { useBrandingStore } from "@/store/branding.store";
 import { router } from "expo-router";
 import { Card } from "@/components/ui/Card";
 import { storage } from "@/utils/storage";
@@ -19,6 +20,7 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const students = useAuthStore((s) => s.students);
   const logout = useAuthStore((s) => s.logout);
+  const branding = useBrandingStore((s) => s.branding);
 
   const handleLogout = () => {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -41,6 +43,10 @@ export default function ProfileScreen() {
     router.push(route as any);
   };
 
+  const schoolName = branding.schoolName || "School ERP";
+  const hasLogo = !!branding.schoolLogo;
+  const primaryColor = branding.primaryColor;
+
   return (
     <SafeAreaView className="flex-1 bg-surface-background">
       <View className="bg-white px-5 pt-3 pb-3 border-b border-slate-100">
@@ -49,12 +55,25 @@ export default function ProfileScreen() {
 
       <ScrollView className="flex-1 px-5 pt-6" showsVerticalScrollIndicator={false}>
         <Card padding="lg" className="items-center mb-4">
-          <View className="w-20 h-20 bg-primary-50 rounded-full items-center justify-center mb-3 border border-primary-100">
-            <Text className="text-primary-600 text-3xl font-bold">
-              {user?.name?.charAt(0) || "P"}
-            </Text>
-          </View>
-          <Text className="text-slate-900 text-lg font-bold">{user?.name || "Parent User"}</Text>
+          {hasLogo ? (
+            <View className="w-20 h-20 rounded-full items-center justify-center mb-3 overflow-hidden border border-slate-100 bg-white">
+              <Image
+                source={{ uri: branding.schoolLogo as string }}
+                className="w-16 h-16"
+                resizeMode="contain"
+              />
+            </View>
+          ) : (
+            <View
+              className="w-20 h-20 rounded-full items-center justify-center mb-3 border border-primary-100"
+              style={{ backgroundColor: `${primaryColor}14` }}
+            >
+              <Text className="text-3xl font-bold" style={{ color: primaryColor }}>
+                {schoolName.charAt(0) || "S"}
+              </Text>
+            </View>
+          )}
+          <Text className="text-slate-900 text-lg font-bold">{schoolName}</Text>
           <Text className="text-slate-500 text-sm mt-0.5">{user?.email || "parent@school.com"}</Text>
         </Card>
 

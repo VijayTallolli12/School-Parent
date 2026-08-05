@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { router } from "expo-router";
-import { View, Text, Animated } from "react-native";
+import { View, Text, Animated, Image } from "react-native";
 import { useAuthStore } from "@/store/auth.store";
+import { useBrandingStore } from "@/store/branding.store";
 
 export default function SplashScreen() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const branding = useBrandingStore((s) => s.branding);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
@@ -36,27 +38,49 @@ export default function SplashScreen() {
     return () => clearTimeout(timer);
   }, [isAuthenticated]);
 
+  const appName = branding.appName || "School ERP";
+  const schoolName = branding.schoolName || "School ERP";
+  const hasLogo = !!branding.schoolLogo;
+
   return (
-    <View className="flex-1 bg-blue-600 items-center justify-center">
+    <View
+      className="flex-1 items-center justify-center"
+      style={{ backgroundColor: branding.primaryColor }}
+    >
       <Animated.View
         style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}
         className="items-center"
       >
-        <View className="w-24 h-24 bg-white rounded-2xl items-center justify-center mb-6 shadow-lg">
-          <Text className="text-4xl">🏫</Text>
-        </View>
+        {hasLogo ? (
+          <View className="w-24 h-24 bg-white rounded-2xl items-center justify-center mb-6 shadow-lg overflow-hidden">
+            <Image
+              source={{ uri: branding.schoolLogo as string }}
+              className="w-20 h-20"
+              resizeMode="contain"
+            />
+          </View>
+        ) : (
+          <View className="w-24 h-24 bg-white rounded-2xl items-center justify-center mb-6 shadow-lg">
+            <Text className="text-4xl">🏫</Text>
+          </View>
+        )}
         <Text className="text-white text-3xl font-bold tracking-wider">
-          School Parent
+          {appName}
         </Text>
-        <Text className="text-blue-200 text-sm mt-2">
-          Connecting parents with schools
+        <Text
+          className="text-white text-sm mt-2"
+          style={{ opacity: 0.8 }}
+        >
+          {schoolName}
         </Text>
       </Animated.View>
       <Animated.View
         style={{ opacity: fadeAnim }}
         className="absolute bottom-12"
       >
-        <Text className="text-blue-300 text-xs">Version 1.0.0</Text>
+        <Text className="text-white text-xs" style={{ opacity: 0.6 }}>
+          Version 1.0.0
+        </Text>
       </Animated.View>
     </View>
   );

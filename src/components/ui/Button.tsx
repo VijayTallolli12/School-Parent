@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   type ViewStyle,
 } from "react-native";
+import { useBrandingStore } from "@/store/branding.store";
 
 type ButtonVariant = "primary" | "secondary" | "outline" | "ghost";
 type ButtonSize = "sm" | "md" | "lg";
@@ -21,14 +22,10 @@ interface ButtonProps {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary:
-    "bg-primary-600 active:bg-primary-700",
-  secondary:
-    "bg-primary-50 active:bg-primary-100",
-  outline:
-    "bg-transparent active:bg-slate-50 border border-slate-200",
-  ghost:
-    "bg-transparent active:bg-slate-50",
+  primary: "",
+  secondary: "",
+  outline: "bg-transparent active:bg-slate-50 border border-slate-200",
+  ghost: "bg-transparent active:bg-slate-50",
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
@@ -39,9 +36,9 @@ const sizeStyles: Record<ButtonSize, string> = {
 
 const textVariantStyles: Record<ButtonVariant, string> = {
   primary: "text-white",
-  secondary: "text-primary-700",
+  secondary: "",
   outline: "text-slate-700",
-  ghost: "text-primary-600",
+  ghost: "",
 };
 
 const sizeTextStyles: Record<ButtonSize, string> = {
@@ -61,7 +58,25 @@ export function Button({
   className = "",
   style,
 }: ButtonProps) {
+  const theme = useBrandingStore((s) => s.theme);
+  const primaryColor = theme.primary;
   const isDisabled = disabled || loading;
+
+  const baseStyle = {
+    backgroundColor:
+      variant === "primary"
+        ? primaryColor
+        : variant === "secondary"
+          ? `${primaryColor}14`
+          : undefined,
+  };
+
+  const textColor =
+    variant === "primary"
+      ? "#FFFFFF"
+      : variant === "secondary" || variant === "ghost"
+        ? primaryColor
+        : "#334155";
 
   return (
     <TouchableOpacity
@@ -74,33 +89,37 @@ export function Button({
         sizeStyles[size],
         fullWidth ? "w-full" : "",
         isDisabled ? "opacity-50" : "",
-        variant === "primary" && !isDisabled ? "" : "",
         className,
       ].join(" ")}
       style={
-        variant === "primary" && !isDisabled
-          ? {
-              shadowColor: "#2563EB",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.2,
-              shadowRadius: 4,
-              elevation: 2,
-              ...(style as object),
-            }
-          : (style as object)
+        {
+          ...baseStyle,
+          ...(variant === "primary" && !isDisabled
+            ? {
+                shadowColor: primaryColor,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 2,
+              }
+            : {}),
+          ...(style as object),
+        } as ViewStyle
       }
     >
       {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={variant === "primary" ? "#FFFFFF" : "#2563EB"}
-        />
+        <ActivityIndicator size="small" color={textColor} />
       ) : (
         <Text
           className={[
             textVariantStyles[variant],
             sizeTextStyles[size],
           ].join(" ")}
+          style={
+            variant === "primary" || variant === "secondary" || variant === "ghost"
+              ? { color: textColor }
+              : undefined
+          }
         >
           {title}
         </Text>

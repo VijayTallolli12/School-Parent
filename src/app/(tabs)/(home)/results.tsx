@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { fetchExamResults } from "@/services/api";
 import type { ExamResultRecord } from "@/types";
+import { OfflineState } from "@/components/ui/OfflineState";
 
 const getGradeFromPercentage = (percentage: number) => {
   if (percentage >= 90) return { grade: "A+", color: "#16A34A" };
@@ -110,21 +111,7 @@ export default function ResultsScreen() {
             <Text className="text-slate-400 text-sm mt-3">Loading results...</Text>
           </View>
         ) : error ? (
-          <View className="items-center justify-center pt-20 pb-8">
-            <View className="w-16 h-16 bg-red-50 rounded-full items-center justify-center mb-4">
-              <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
-            </View>
-            <Text className="text-slate-800 text-base font-semibold mb-2">Connection Error</Text>
-            <Text className="text-slate-400 text-sm text-center mb-6">{error}</Text>
-            <TouchableOpacity
-              className="flex-row items-center bg-primary-600 px-6 py-3 rounded-xl"
-              activeOpacity={0.7}
-              onPress={onRefresh}
-            >
-              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
-              <Text className="text-white font-semibold text-sm ml-2">Retry</Text>
-            </TouchableOpacity>
-          </View>
+          <OfflineState message={error} onRetry={onRefresh} />
         ) : groupedExams.length === 0 ? (
           <View className="items-center justify-center py-16">
             <View className="w-16 h-16 bg-slate-100 rounded-full items-center justify-center mb-4">

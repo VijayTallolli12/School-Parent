@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { Card } from "@/components/ui/Card";
 import { fetchFees } from "@/services/api";
 import type { StudentFee } from "@/types";
+import { OfflineState } from "@/components/ui/OfflineState";
 
 export default function FeesScreen() {
   const [activeTab, setActiveTab] = useState<"overview" | "history">("overview");
@@ -81,21 +82,7 @@ export default function FeesScreen() {
             <Text className="text-slate-400 text-sm mt-3">Loading fees...</Text>
           </View>
         ) : error ? (
-          <View className="items-center justify-center pt-20 pb-8">
-            <View className="w-16 h-16 bg-red-50 rounded-full items-center justify-center mb-4">
-              <Ionicons name="cloud-offline-outline" size={32} color="#EF4444" />
-            </View>
-            <Text className="text-slate-800 text-base font-semibold mb-2">Connection Error</Text>
-            <Text className="text-slate-400 text-sm text-center mb-6">{error}</Text>
-            <TouchableOpacity
-              className="flex-row items-center bg-primary-600 px-6 py-3 rounded-xl"
-              activeOpacity={0.7}
-              onPress={onRefresh}
-            >
-              <Ionicons name="refresh-outline" size={18} color="#FFFFFF" />
-              <Text className="text-white font-semibold text-sm ml-2">Retry</Text>
-            </TouchableOpacity>
-          </View>
+          <OfflineState message={error} onRetry={onRefresh} />
         ) : fees.length === 0 ? (
           <View className="items-center justify-center pt-16 px-8">
             <View className="w-16 h-16 bg-slate-100 rounded-full items-center justify-center mb-4">

@@ -8,6 +8,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useBrandingStore } from "@/store/branding.store";
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -35,6 +36,7 @@ export const Input = memo(function Input({
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const showError = !!error;
+  const primaryColor = useBrandingStore((s) => s.theme.primary);
 
   // Ref-based callbacks — eternally stable, never cause re-renders
   const onFocusRef = useRef(externalOnFocus);
@@ -56,7 +58,7 @@ export const Input = memo(function Input({
   const borderColor = showError
     ? "#DC2626"
     : isFocused
-      ? "#3B82F6"
+      ? primaryColor
       : "#E2E8F0";
 
   const bgColor = showError ? "#FEF2F2" : isFocused ? "#FFFFFF" : "#F8FAFC";
@@ -64,7 +66,7 @@ export const Input = memo(function Input({
   const iconColor = showError
     ? "#DC2626"
     : isFocused
-      ? "#3B82F6"
+      ? primaryColor
       : "#94A3B8";
 
   return (
@@ -86,7 +88,7 @@ export const Input = memo(function Input({
         <TextInput
           className={[INPUT_CLASS, className].filter(Boolean).join(" ")}
           placeholderTextColor="#94A3B8"
-          selectionColor="#3B82F6"
+          selectionColor={primaryColor}
           onFocus={handleFocus}
           onBlur={handleBlur}
           secureTextEntry={isPassword && !showPassword}
@@ -101,7 +103,7 @@ export const Input = memo(function Input({
             <Ionicons
               name={showPassword ? "eye-off-outline" : "eye-outline"}
               size={20}
-              color={isFocused ? "#3B82F6" : "#94A3B8"}
+              color={isFocused ? primaryColor : "#94A3B8"}
             />
           </TouchableOpacity>
         )}
