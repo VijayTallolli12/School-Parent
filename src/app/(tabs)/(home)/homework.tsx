@@ -39,6 +39,7 @@ export default function HomeworkScreen() {
   const loadHomework = useCallback(async () => {
     if (!parentUuid || !childUuid) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {

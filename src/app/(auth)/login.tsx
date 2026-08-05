@@ -45,12 +45,18 @@ export default function LoginScreen() {
     setIsSubmitting(true);
     try {
       const { data: wrapper } = await apiClient.post("/auth/login", values);
+      if (!wrapper || !wrapper.success) {
+        throw new Error(wrapper?.message ?? "Login failed. Please check your credentials.");
+      }
       const payload: {
         token: string;
         user: Record<string, unknown>;
         students: Record<string, unknown>[];
         parent_uuid?: string;
       } = wrapper.data;
+      if (!payload || !payload.token) {
+        throw new Error("Login did not return valid user credentials.");
+      }
 
       const mappedUser = {
         id: payload.user.id as number,
@@ -84,6 +90,7 @@ export default function LoginScreen() {
     } catch (error: any) {
       const message =
         error.response?.data?.message ||
+        error.message ||
         "Login failed. Please check your credentials.";
       Alert.alert("Login Error", message);
     } finally {

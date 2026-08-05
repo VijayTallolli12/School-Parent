@@ -35,12 +35,13 @@ function formatDateShort(dateStr: string): string {
 export default function LeaveDetailScreen() {
   const params = useLocalSearchParams<Record<string, string>>();
   const parentUuid = useAuthStore((s) => s.parentUuid);
+  const selectedStudentUuid = useAuthStore((s) => s.selectedStudentUuid);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<LeaveRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const id = params.id ? Number(params.id) : null;
-  const childUuid = params.childUuid ?? "";
+  const childUuid = params.childUuid ?? selectedStudentUuid ?? "";
 
   const loadDetail = useCallback(async () => {
     if (!parentUuid || !childUuid || !id) {

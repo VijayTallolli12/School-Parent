@@ -20,7 +20,7 @@ export default function AttendanceScreen() {
 
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
-  const [selectedYear] = useState(now.getFullYear());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [summary, setSummary] = useState<{ total_days: number; counts: Record<string, number> } | null>(null);
@@ -31,6 +31,7 @@ export default function AttendanceScreen() {
   const loadAttendance = useCallback(async () => {
     if (!parentUuid || !childUuid) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {
@@ -113,11 +114,23 @@ export default function AttendanceScreen() {
   const selectedRecord = selectedDay ? recordMap.get(String(selectedDay)) : null;
 
   const prevMonth = () => {
-    setSelectedMonth((m) => (m === 1 ? 12 : m - 1));
+    setSelectedMonth((m) => {
+      if (m === 1) {
+        setSelectedYear((y) => y - 1);
+        return 12;
+      }
+      return m - 1;
+    });
     setSelectedDay(null);
   };
   const nextMonth = () => {
-    setSelectedMonth((m) => (m === 12 ? 1 : m + 1));
+    setSelectedMonth((m) => {
+      if (m === 12) {
+        setSelectedYear((y) => y + 1);
+        return 1;
+      }
+      return m + 1;
+    });
     setSelectedDay(null);
   };
 

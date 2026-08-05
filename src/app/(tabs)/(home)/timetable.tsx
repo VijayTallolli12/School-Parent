@@ -85,6 +85,7 @@ export default function TimetableScreen() {
   const loadTimetable = useCallback(async () => {
     if (!parentUuid || !childUuid) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {

@@ -38,6 +38,7 @@ export default function ResultsScreen() {
   const loadResults = useCallback(async () => {
     if (!parentUuid || !childUuid) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {

@@ -2,6 +2,7 @@ import axios from "axios";
 import { API_BASE_URL } from "@/config/api";
 import { storage } from "@/utils/storage";
 import { STORAGE_KEYS } from "@/constants/config";
+import { useAuthStore } from "@/store/auth.store";
 import type { AttendanceData, DashboardData, NotificationItem, StudentFee, ExamResultRecord, TimetableData, HomeworkItem, CalendarEvent, StudentDocument, CircularItem, LeaveRequest, LeaveRequestPayload } from "@/types";
 
 const apiClient = axios.create({
@@ -28,6 +29,8 @@ async function clearAuthData(): Promise<void> {
   await storage.remove(STORAGE_KEYS.AUTH_TOKEN);
   await storage.remove(STORAGE_KEYS.USER_DATA);
   await storage.remove("school_parent_auth_store");
+  const authStore = useAuthStore.getState();
+  authStore.logout();
 }
 
 apiClient.interceptors.request.use(
@@ -57,8 +60,12 @@ apiClient.interceptors.response.use(
   },
 );
 
-function unwrap<T>(response: { data: { success: boolean; data: T } }): T {
-  return response.data.data;
+function unwrap<T>(response: { data: { success: boolean; data: T; message?: string } }): T {
+  const body = response.data;
+  if (!body?.success) {
+    throw new Error(body?.message ?? "API request failed");
+  }
+  return body.data;
 }
 
 // ─── Parent / Dashboard ────────────────────────────────────────────
@@ -175,12 +182,11 @@ export async function fetchNotifications(page = 1): Promise<{
   meta: { current_page: number; last_page: number; total: number };
 }> {
   const res = await apiClient.get("/notifications", { params: { page } });
-  // paginated response: { success, message, data: [...], meta: {...}, links: {...} }
-  const body = res.data;
+  const body = unwrap<{ data: Record<string, unknown>[]; meta: { current_page: number; last_page: number; total: number } }>(res);
   const rawItems = (body.data ?? []) as Record<string, unknown>[];
   return {
     data: rawItems.map(normalizeNotification),
-    meta: body.meta as { current_page: number; last_page: number; total: number },
+    meta: body.meta,
   };
 }
 
@@ -191,11 +197,11 @@ export async function fetchUnreadCount(): Promise<{ count: number }> {
 }
 
 export async function markNotificationRead(id: number): Promise<void> {
-  await apiClient.post(`/notifications/${id}/read`);
+  await unwrap<void>(await apiClient.post(`/notifications/${id}/read`));
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  await apiClient.post("/notifications/read-all");
+  await unwrap<void>(await apiClient.post("/notifications/read-all"));
 }
 
 // ─── Homework ───────────────────────────────────────────────────────
@@ -252,7 +258,7 @@ export async function fetchCircularDetail(parentUuid: string, id: number): Promi
 }
 
 export async function markCircularRead(parentUuid: string, id: number): Promise<void> {
-  await apiClient.post(`/parents/${parentUuid}/circulars/${id}/read`);
+  await unwrap<void>(await apiClient.post(`/parents/${parentUuid}/circulars/${id}/read`));
 }
 
 // ─── Leave Requests ─────────────────────────────────────────────────
@@ -303,7 +309,7 @@ export interface ChangePasswordPayload {
 
 export async function changePassword(parentUuid: string, payload: ChangePasswordPayload): Promise<Record<string, unknown>> {
   const res = await apiClient.put(`/parents/${parentUuid}/change-password`, payload);
-  return res.data;
+  return unwrap<Record<string, unknown>>(res);
 }
 
 export default apiClient;

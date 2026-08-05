@@ -23,6 +23,7 @@ export default function FeesScreen() {
   const loadFees = useCallback(async () => {
     if (!parentUuid || !childUuid) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {

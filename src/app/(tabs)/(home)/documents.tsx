@@ -35,6 +35,7 @@ export default function DocumentsScreen() {
   const loadDocuments = useCallback(async () => {
     if (!parentUuid || !childUuid) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {

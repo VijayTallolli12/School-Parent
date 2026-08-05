@@ -80,6 +80,7 @@ export default function DashboardScreen() {
   const loadDashboard = useCallback(async () => {
     if (!parentUuid) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {

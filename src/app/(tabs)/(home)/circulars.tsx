@@ -45,6 +45,8 @@ export default function CircularsScreen() {
   const loadCirculars = useCallback(async (page = 1, append = false) => {
     if (!parentUuid) {
       setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
       return;
     }
     try {

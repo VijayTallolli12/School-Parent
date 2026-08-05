@@ -56,7 +56,7 @@ export default function CalendarScreen() {
 
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
-  const [selectedYear] = useState(now.getFullYear());
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [eventType, setEventType] = useState("");
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +66,7 @@ export default function CalendarScreen() {
   const loadCalendar = useCallback(async () => {
     if (!parentUuid || !childUuid) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {
@@ -91,8 +92,24 @@ export default function CalendarScreen() {
     await loadCalendar();
   }, [loadCalendar]);
 
-  const prevMonth = () => setSelectedMonth((m) => (m === 1 ? 12 : m - 1));
-  const nextMonth = () => setSelectedMonth((m) => (m === 12 ? 1 : m + 1));
+  const prevMonth = () => {
+    setSelectedMonth((m) => {
+      if (m === 1) {
+        setSelectedYear((y) => y - 1);
+        return 12;
+      }
+      return m - 1;
+    });
+  };
+  const nextMonth = () => {
+    setSelectedMonth((m) => {
+      if (m === 12) {
+        setSelectedYear((y) => y + 1);
+        return 1;
+      }
+      return m + 1;
+    });
+  };
 
   const groupedByDate = events.reduce<Record<string, CalendarEvent[]>>((acc, ev) => {
     const key = ev.start_date;

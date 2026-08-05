@@ -35,6 +35,7 @@ export default function LeaveListScreen() {
   const loadLeaveRequests = useCallback(async () => {
     if (!parentUuid || !childUuid) {
       setLoading(false);
+      setRefreshing(false);
       return;
     }
     try {
