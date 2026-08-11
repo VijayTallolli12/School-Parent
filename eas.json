@@ -21,17 +21,17 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://school-erp-production-e3a5.up.railway.app/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://paleturquoise-monkey-126256.hostingersite.com/api/v1"
       }
     },
     "production": {
       "distribution": "store",
       "autoIncrement": true,
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://school-erp-production-e3a5.up.railway.app/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://paleturquoise-monkey-126256.hostingersite.com/api/v1"
       }
     }
   },

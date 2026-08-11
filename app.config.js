@@ -2,7 +2,7 @@ const IS_PRODUCTION =
   process.env.EAS_BUILD_PROFILE === "production" || process.env.NODE_ENV === "production";
 
 const DEFAULT_API_URL = IS_PRODUCTION
-  ? "https://school-erp-production-e3a5.up.railway.app/api/v1"
+  ? "https://paleturquoise-monkey-126256.hostingersite.com/api/v1"
   : "http://192.168.1.3:8000/api/v1";
 
 export default {

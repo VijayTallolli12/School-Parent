@@ -280,10 +280,10 @@ export async function fetchCirculars(parentUuid: string, page = 1): Promise<{
   meta: { current_page: number; last_page: number; total: number };
 }> {
   const res = await apiClient.get(`/parents/${parentUuid}/circulars`, { params: { page } });
-  const body = res.data;
+  const body = unwrap<{ data: CircularItem[]; meta: { current_page: number; last_page: number; total: number } }>(res);
   return {
-    data: (body.data ?? []) as CircularItem[],
-    meta: body.meta as { current_page: number; last_page: number; total: number },
+    data: body.data ?? [],
+    meta: body.meta,
   };
 }
 
